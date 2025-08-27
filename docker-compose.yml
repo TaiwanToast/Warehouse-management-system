@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  warehouse-system:
+    build: .
+    container_name: warehouse-management
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # 資料庫檔案持久化
+      - ./data:/app/data
+      # 上傳圖片持久化
+      - ./uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    networks:
+      - warehouse-network
+
+networks:
+  warehouse-network:
+    driver: bridge

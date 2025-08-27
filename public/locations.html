@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>倉儲物品管理 - 樓層與房間管理</title>
+	<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+	<header>
+		<h1>倉儲物品管理</h1>
+		<nav class="nav">
+			<a href="/">新增</a>
+			<a href="/search.html">查詢</a>
+			<a href="/manage.html">管理</a>
+			<a href="/locations.html" class="active">樓層與房間管理</a>
+		</nav>
+	</header>
+	<main>
+		<section class="panel">
+			<h2>樓層與房間</h2>
+			<div class="flex">
+				<div class="card" style="flex:1 1 360px;">
+					<h3>樓層</h3>
+					<div class="flex">
+						<input id="floor-name" placeholder="樓層名稱，例如：一樓" />
+						<button id="add-floor">新增樓層</button>
+					</div>
+					<ul id="floors"></ul>
+				</div>
+				<div class="card" style="flex:2 1 480px;">
+					<h3>房間</h3>
+					<div class="flex">
+						<select id="room-floor"></select>
+						<input id="room-name" placeholder="房間名稱，例如：倉庫 A" />
+						<button id="add-room">新增房間</button>
+					</div>
+					<ul id="rooms"></ul>
+				</div>
+			</div>
+		</section>
+	</main>
+	<script src="/locations.js"></script>
+</body>
+</html>

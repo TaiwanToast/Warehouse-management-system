@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>倉儲物品管理 - 管理</title>
+	<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+	<header>
+		<h1>倉儲物品管理</h1>
+		<nav class="nav">
+			<a href="/">新增</a>
+			<a href="/search.html">查詢</a>
+			<a href="/manage.html" class="active">管理</a>
+			<a href="/locations.html">樓層與房間管理</a>
+		</nav>
+	</header>
+	<main>
+		<section class="panel">
+			<h2>管理物品</h2>
+			<div class="flex">
+				<input id="q" placeholder="關鍵字" />
+				<button id="search">載入</button>
+			</div>
+			<div id="results" class="grid"></div>
+		</section>
+		<dialog id="editDialog">
+			<form method="dialog" id="editForm">
+				<h3>編輯物品</h3>
+				<input name="name" placeholder="物品名稱" required />
+				<textarea name="description" placeholder="描述（選填）"></textarea>
+				<button value="cancel">取消</button>
+				<button id="saveEdit" value="default">儲存</button>
+			</form>
+		</dialog>
+		<dialog id="imgDialog">
+			<div style="background:var(--panel); padding:8px; border-radius:16px; border:1px solid var(--border); max-width:min(92vw,900px);">
+				<img id="imgPreview" alt="預覽" style="display:block; width:100%; height:auto; border-radius:12px;" />
+				<div class="flex" style="justify-content:flex-end; margin-top:8px;">
+					<button id="closeImg" style="width:auto;">關閉</button>
+				</div>
+			</div>
+		</dialog>
+	</main>
+	<script src="/manage.js"></script>
+</body>
+</html>

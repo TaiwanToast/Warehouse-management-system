@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>倉儲物品管理 - 新增</title>
+	<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+	<header>
+		<h1>倉儲物品管理</h1>
+		<nav class="nav">
+			<a href="/" class="active">新增</a>
+			<a href="/search.html">查詢</a>
+			<a href="/manage.html">管理</a>
+			<a href="/locations.html">樓層與房間管理</a>
+		</nav>
+	</header>
+	<main>
+		<section class="panel">
+			<h2>新增物品</h2>
+			<form id="item-form">
+				<input name="name" placeholder="物品名稱" required />
+				<textarea name="description" placeholder="描述（選填）"></textarea>
+				<select name="floor_id" id="item-floor" required></select>
+				<select name="room_id" id="item-room" required></select>
+				<input type="file" name="image" accept="image/*" />
+				<button type="submit">新增物品</button>
+			</form>
+		</section>
+	</main>
+	<script src="/app.js"></script>
+</body>
+</html>
