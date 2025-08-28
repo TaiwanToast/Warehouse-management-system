@@ -73,6 +73,10 @@ const PageManager = {
 		if (pageId === 'search') {
 			ItemManager.loadAllItems();
 		}
+		// 切換到管理頁面時自動載入所有物品
+		if (pageId === 'manage') {
+			ItemManager.loadAllManageItems();
+		}
 	},
 	
 	init() {
@@ -93,11 +97,15 @@ const FloorManager = {
 		const sel = document.getElementById('room-floor');
 		const itemFloorSel = document.getElementById('item-floor');
 		const qFloorSel = document.getElementById('q-floor');
+		const qFloorManageSel = document.getElementById('q-floor-manage');
+		const editFloorSel = document.getElementById('edit-floor');
 		
 		ul.innerHTML = '';
 		sel.innerHTML = '';
 		itemFloorSel.innerHTML = '<option value="">選擇樓層</option>';
 		qFloorSel.innerHTML = '<option value="">全部樓層</option>';
+		qFloorManageSel.innerHTML = '<option value="">全部樓層</option>';
+		editFloorSel.innerHTML = '<option value="">選擇樓層</option>';
 		
 		floors.forEach(f => {
 			ul.insertAdjacentHTML('beforeend', 
@@ -105,9 +113,13 @@ const FloorManager = {
 			sel.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.name}</option>`);
 			itemFloorSel.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.name}</option>`);
 			qFloorSel.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.name}</option>`);
+			qFloorManageSel.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.name}</option>`);
+			editFloorSel.insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.name}</option>`);
 		});
 		
 		this.loadRooms();
+		this.loadQueryRooms(); // 載入查詢頁面的房間
+		this.loadManageRooms(); // 載入管理頁面的房間
 	},
 	
 	loadRooms() {
@@ -119,6 +131,39 @@ const FloorManager = {
 		rooms.forEach(r => {
 			ul.insertAdjacentHTML('beforeend', 
 				`<li data-id="${r.id}">${r.name} <button class="del-room" style="background:#dc3545">刪除</button></li>`);
+		});
+	},
+	
+	loadQueryRooms() {
+		const floorId = document.getElementById('q-floor').value;
+		const rooms = floorId ? Storage.find(Storage.rooms, r => r.floor_id == floorId) : [];
+		const qRoomSel = document.getElementById('q-room');
+		qRoomSel.innerHTML = '<option value="">全部區域</option>';
+		
+		rooms.forEach(r => {
+			qRoomSel.insertAdjacentHTML('beforeend', `<option value="${r.id}">${r.name}</option>`);
+		});
+	},
+	
+	loadManageRooms() {
+		const floorId = document.getElementById('q-floor-manage').value;
+		const rooms = floorId ? Storage.find(Storage.rooms, r => r.floor_id == floorId) : [];
+		const qRoomManageSel = document.getElementById('q-room-manage');
+		qRoomManageSel.innerHTML = '<option value="">全部區域</option>';
+		
+		rooms.forEach(r => {
+			qRoomManageSel.insertAdjacentHTML('beforeend', `<option value="${r.id}">${r.name}</option>`);
+		});
+	},
+	
+	loadEditRooms() {
+		const floorId = document.getElementById('edit-floor').value;
+		const rooms = floorId ? Storage.find(Storage.rooms, r => r.floor_id == floorId) : [];
+		const editRoomSel = document.getElementById('edit-room');
+		editRoomSel.innerHTML = '<option value="">選擇區域</option>';
+		
+		rooms.forEach(r => {
+			editRoomSel.insertAdjacentHTML('beforeend', `<option value="${r.id}">${r.name}</option>`);
 		});
 	},
 	
@@ -135,9 +180,9 @@ const FloorManager = {
 			if (!e.target.classList.contains('del-floor')) return;
 			const li = e.target.closest('li');
 			const id = li.dataset.id;
-			if (!confirm('刪除此樓層將會同時刪除其房間，確定？')) return;
+			if (!confirm('刪除此樓層將會同時刪除其區域，確定？')) return;
 			
-			// 刪除相關房間
+			// 刪除相關區域
 			const rooms = Storage.get(Storage.rooms);
 			const filteredRooms = rooms.filter(r => r.floor_id != id);
 			Storage.set(Storage.rooms, filteredRooms);
@@ -148,6 +193,9 @@ const FloorManager = {
 		});
 		
 		document.getElementById('room-floor').addEventListener('change', () => this.loadRooms());
+		document.getElementById('q-floor').addEventListener('change', () => this.loadQueryRooms()); // 查詢頁面樓層變更
+		document.getElementById('q-floor-manage').addEventListener('change', () => this.loadManageRooms()); // 管理頁面樓層變更
+		document.getElementById('edit-floor').addEventListener('change', () => this.loadEditRooms()); // 編輯對話框樓層變更
 	}
 };
 
@@ -158,7 +206,7 @@ const RoomManager = {
 			const floor_id = document.getElementById('room-floor').value;
 			const name = document.getElementById('room-name').value.trim();
 			if (!floor_id) return alert('請先選擇樓層');
-			if (!name) return alert('請輸入房間名稱');
+			if (!name) return alert('請輸入區域名稱');
 			
 			// 確保 floor_id 是數字
 			const floorId = parseFloat(floor_id);
@@ -167,6 +215,9 @@ const RoomManager = {
 			Storage.add(Storage.rooms, { floor_id: floorId, name });
 			document.getElementById('room-name').value = '';
 			FloorManager.loadRooms();
+			FloorManager.loadQueryRooms(); // 同時更新查詢頁面的房間選項
+			FloorManager.loadManageRooms(); // 同時更新管理頁面的房間選項
+			FloorManager.loadEditRooms(); // 同時更新編輯對話框的房間選項
 		});
 		
 		document.getElementById('rooms').addEventListener('click', (e) => {
@@ -177,6 +228,9 @@ const RoomManager = {
 			
 			Storage.delete(Storage.rooms, id);
 			FloorManager.loadRooms();
+			FloorManager.loadQueryRooms(); // 同時更新查詢頁面的房間選項
+			FloorManager.loadManageRooms(); // 同時更新管理頁面的房間選項
+			FloorManager.loadEditRooms(); // 同時更新編輯對話框的房間選項
 		});
 	}
 };
@@ -282,7 +336,7 @@ const ItemManager = {
 			const floorId = parseFloat(e.target.value);
 			const rooms = floorId ? Storage.find(Storage.rooms, r => r.floor_id == floorId) : [];
 			const sel = document.getElementById('item-room');
-			sel.innerHTML = '<option value="">選擇房間</option>';
+			sel.innerHTML = '<option value="">選擇區域</option>';
 			rooms.forEach(r => {
 				sel.insertAdjacentHTML('beforeend', `<option value="${r.id}">${r.name}</option>`);
 			});
@@ -300,7 +354,9 @@ const ItemManager = {
 		// 管理頁查詢
 		document.getElementById('search-manage').addEventListener('click', () => {
 			const q = document.getElementById('q-manage').value.trim();
-			const items = this.searchItems(q);
+			const floorId = document.getElementById('q-floor-manage').value;
+			const roomId = document.getElementById('q-room-manage').value;
+			const items = this.searchItems(q, floorId, roomId);
 			this.renderItems(items, 'results-manage');
 		});
 		
@@ -313,15 +369,45 @@ const ItemManager = {
 			if (e.target.classList.contains('edit')) {
 				const dlg = document.getElementById('editDialog');
 				const form = document.getElementById('editForm');
-				form.name.value = item.querySelector('h3').textContent;
-				form.description.value = item.querySelector('p').textContent;
+				
+				// 獲取當前物品的資料
+				const items = Storage.get(Storage.items);
+				const currentItem = items.find(item => item.id == id);
+				
+				// 載入樓層和區域選項
+				FloorManager.loadFloors();
+				if (currentItem) {
+					// 設置當前值
+					form.name.value = currentItem.name;
+					form.description.value = currentItem.description || '';
+					form.floor_id.value = currentItem.floor_id;
+					
+					// 載入對應的區域選項
+					FloorManager.loadEditRooms();
+					
+					// 設置區域值（需要延遲一下確保選項已載入）
+					setTimeout(() => {
+						form.room_id.value = currentItem.room_id;
+					}, 100);
+				}
+				
 				dlg.returnValue = '';
 				dlg.showModal();
 				
 				document.getElementById('saveEdit').onclick = () => {
+					const floorId = parseFloat(form.floor_id.value);
+					const roomId = parseFloat(form.room_id.value);
+					
+					if (!form.name.value.trim() || !floorId || !roomId) {
+						alert('請填寫所有必要欄位');
+						return;
+					}
+					
 					Storage.update(Storage.items, id, {
 						name: form.name.value.trim(),
-						description: form.description.value.trim() || null
+						description: form.description.value.trim() || null,
+						floor_id: floorId,
+						room_id: roomId
 					});
 					dlg.close();
 					document.getElementById('search-manage').click();
@@ -339,6 +425,11 @@ const ItemManager = {
 	loadAllItems() {
 		const items = Storage.get(Storage.items);
 		this.renderItems(items, 'results');
+	},
+
+	loadAllManageItems() {
+		const items = Storage.get(Storage.items);
+		this.renderItems(items, 'results-manage');
 	}
 };
 
