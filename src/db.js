@@ -12,6 +12,23 @@ if (!fs.existsSync(DATA_DIR)) {
 	fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
+function applyMigrations(db) {
+	// 檢查並新增 items 的新欄位
+	db.all("PRAGMA table_info(items)", [], (err, rows) => {
+		if (err) return; // 靜默失敗避免中斷啟動
+		const existing = new Set(rows.map(r => r.name));
+		const alters = [];
+		if (!existing.has('status')) alters.push("ALTER TABLE items ADD COLUMN status TEXT DEFAULT 'available'");
+		if (!existing.has('borrower')) alters.push("ALTER TABLE items ADD COLUMN borrower TEXT");
+		if (!existing.has('borrow_location')) alters.push("ALTER TABLE items ADD COLUMN borrow_location TEXT");
+		if (!existing.has('borrow_at')) alters.push("ALTER TABLE items ADD COLUMN borrow_at DATETIME");
+		if (!existing.has('returned_at')) alters.push("ALTER TABLE items ADD COLUMN returned_at DATETIME");
+		if (alters.length) {
+			alters.forEach(sql => db.run(sql));
+		}
+	});
+}
+
 function ensureDatabaseInitialized() {
 	const dbExists = fs.existsSync(DATABASE_PATH);
 	const db = new sqlite3.Database(DATABASE_PATH);
@@ -19,6 +36,7 @@ function ensureDatabaseInitialized() {
 		const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
 		db.exec(schema);
 	}
+	applyMigrations(db);
 	return db;
 }
 

@@ -31,20 +31,20 @@ function bind(){
 	$('#floors').addEventListener('click', async (e)=>{
 		if(!e.target.classList.contains('del-floor')) return;
 		const li = e.target.closest('li'); const id = li.getAttribute('data-id');
-		if(!confirm('刪除此樓層將會同時刪除其房間，確定？')) return;
+		if(!confirm('刪除此樓層將會同時刪除其區域，確定？')) return;
 		await fetch(`/api/floors/${id}`, { method:'DELETE' });
 		await loadFloors();
 	});
 	$('#room-floor').addEventListener('change', loadRooms);
 	$('#add-room').addEventListener('click', async ()=>{
 		const floor_id = $('#room-floor').value; const name = $('#room-name').value.trim();
-		if(!floor_id) return alert('請先選擇樓層'); if(!name) return alert('請輸入房間名稱');
+		if(!floor_id) return alert('請先選擇樓層'); if(!name) return alert('請輸入區域名稱');
 		await postJSON('/api/rooms', { floor_id, name }); $('#room-name').value=''; await loadRooms();
 	});
 	$('#rooms').addEventListener('click', async (e)=>{
 		if(!e.target.classList.contains('del-room')) return;
 		const li = e.target.closest('li'); const id = li.getAttribute('data-id');
-		if(!confirm('確定刪除此房間？')) return;
+		if(!confirm('確定刪除此區域？')) return;
 		await fetch(`/api/rooms/${id}`, { method:'DELETE' });
 		await loadRooms();
 	});

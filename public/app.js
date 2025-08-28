@@ -34,7 +34,7 @@ async function populateRoomsForItem(floorId) {
 		return;
 	}
 	const rooms = await fetchJSON(`/api/rooms?floor_id=${encodeURIComponent(floorId)}`);
-	itemRoomSel.innerHTML = '<option value="">選擇房間</option>';
+	itemRoomSel.innerHTML = '<option value="">選擇區域</option>';
 	for (const r of rooms) {
 		itemRoomSel.insertAdjacentHTML('beforeend', `<option value="${r.id}">${r.name}</option>`);
 	}

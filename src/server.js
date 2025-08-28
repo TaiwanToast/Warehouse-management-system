@@ -125,8 +125,10 @@ app.get('/api/items', async (req, res) => {
 		if (room_id) { where.push('items.room_id = ?'); params.push(room_id); }
 		const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
 		const sql = `
-			SELECT items.id, items.name, items.description, items.image_path, floors.name AS floor_name, rooms.name AS room_name,
-				items.floor_id, items.room_id
+			SELECT items.id, items.name, items.description, items.image_path,
+				items.floor_id, items.room_id, items.status, items.borrower, items.borrow_location,
+				items.borrow_at, items.returned_at,
+				floors.name AS floor_name, rooms.name AS room_name
 			FROM items
 			JOIN floors ON items.floor_id = floors.id
 			JOIN rooms ON items.room_id = rooms.id
@@ -142,9 +144,29 @@ app.get('/api/items', async (req, res) => {
 
 app.put('/api/items/:id', async (req, res) => {
 	try {
-		const { name, description } = req.body;
+		const { name, description, floor_id, room_id, status, borrower, borrow_location } = req.body;
 		if (!name) return res.status(400).json({ error: 'name is required' });
-		await runQuery('UPDATE items SET name = ?, description = ? WHERE id = ?', [name, description || null, req.params.id]);
+		const fields = ['name = ?', 'description = ?'];
+		const values = [name, description || null];
+		if (floor_id) { fields.push('floor_id = ?'); values.push(floor_id); }
+		if (room_id) { fields.push('room_id = ?'); values.push(room_id); }
+		// 狀態與時間
+		if (typeof status !== 'undefined') {
+			fields.push('status = ?'); values.push(status);
+			if (status === 'borrowed') {
+				fields.push('borrow_at = CURRENT_TIMESTAMP');
+				fields.push('returned_at = NULL');
+			} else if (status === 'returned') {
+				fields.push('returned_at = CURRENT_TIMESTAMP');
+			} else if (status === 'available') {
+				fields.push('borrow_at = NULL');
+				fields.push('returned_at = NULL');
+			}
+		}
+		if (typeof borrower !== 'undefined') { fields.push('borrower = ?'); values.push(borrower || null); }
+		if (typeof borrow_location !== 'undefined') { fields.push('borrow_location = ?'); values.push(borrow_location || null); }
+		values.push(req.params.id);
+		await runQuery(`UPDATE items SET ${fields.join(', ')} WHERE id = ?`, values);
 		res.json({ success: true });
 	} catch (err) {
 		res.status(500).json({ error: err.message });

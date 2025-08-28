@@ -3,17 +3,17 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>倉儲物品管理 - 查詢</title>
+	<title>惠中寺倉儲管理系統 - 查詢</title>
 	<link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
 	<header>
-		<h1>倉儲物品管理</h1>
+		<h1>惠中寺倉儲管理系統</h1>
 		<nav class="nav">
 			<a href="/">新增</a>
 			<a href="/search.html" class="active">查詢</a>
 			<a href="/manage.html">管理</a>
-			<a href="/locations.html">樓層與房間管理</a>
+			<a href="/locations.html">樓層與區域</a>
 		</nav>
 	</header>
 	<main>
@@ -27,15 +27,15 @@
 			</div>
 			<div id="results" class="grid"></div>
 		</section>
-	</main>
-	<dialog id="imgDialog">
-		<div style="background:var(--panel); padding:8px; border-radius:16px; border:1px solid var(--border); max-width:min(92vw,900px);">
-			<img id="imgPreview" alt="預覽" style="display:block; width:100%; height:auto; border-radius:12px;" />
-			<div class="flex" style="justify-content:flex-end; margin-top:8px;">
-				<button id="closeImg" style="width:auto;">關閉</button>
+		<dialog id="imgDialog">
+			<div style="background:var(--panel); padding:8px; border-radius:16px; border:1px solid var(--border); max-width:min(92vw,900px);">
+				<img id="imgPreview" alt="預覽" style="display:block; width:100%; height:auto; border-radius:12px;" />
+				<div class="flex" style="justify-content:flex-end; margin-top:8px;">
+					<button id="closeImg" style="width:auto;">關閉</button>
+				</div>
 			</div>
-		</div>
-	</dialog>
+		</dialog>
+	</main>
 	<script src="/search.js"></script>
 </body>
 </html>

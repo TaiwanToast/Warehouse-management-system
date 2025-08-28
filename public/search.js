@@ -8,8 +8,46 @@ async function fetchJSON(url){
 	return r.json();
 }
 
+function mapStatus(status){
+	switch(status){
+		case 'borrowed': return { label:'借出中', cls:'badge-status badge-borrowed' };
+		case 'returned': return { label:'已歸還', cls:'badge-status badge-returned' };
+		case 'available':
+		default: return { label:'可用', cls:'badge-status badge-available' };
+	}
+}
+
+function fmt(ts){
+	if(!ts) return '';
+	try{
+		// 以 UTC 解析（SQLite CURRENT_TIMESTAMP 為 UTC），固定轉為台北時間（UTC+8）
+		const iso = ts.includes('T') ? ts : ts.replace(' ','T');
+		const d = new Date(iso + 'Z');
+		if(Number.isNaN(d.getTime())) return ts;
+		const opt = { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Taipei' };
+		return new Intl.DateTimeFormat('zh-TW', opt).format(d).replaceAll('/','-');
+	}catch{ return ts; }
+}
+
+function cnNumToInt(str){
+	const d = String(str).match(/\d+/);
+	if(d) return parseInt(d[0],10);
+	const map={"零":0,"〇":0,"一":1,"二":2,"兩":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
+	let s = String(str).replace(/樓|層|F|f/g,'');
+	if(s==='十') return 10;
+	const idx = s.indexOf('十');
+	if(idx!==-1){
+		const tens = idx===0?1:(map[s[idx-1]]||0);
+		const ones = map[s[idx+1]]||0;
+		return tens*10 + ones;
+	}
+	let n = 0; for(const ch of s){ if(map.hasOwnProperty(ch)) n = n*10 + map[ch]; }
+	return n||Number.MAX_SAFE_INTEGER;
+}
+
 async function initOptions(){
-	const floors = await fetchJSON('/api/floors');
+	let floors = await fetchJSON('/api/floors');
+	floors = floors.sort((a,b)=> cnNumToInt(a.name) - cnNumToInt(b.name));
 	$('#q-floor').innerHTML = '<option value="">全部樓層</option>';
 	for(const f of floors){
 		$('#q-floor').insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.name}</option>`);
@@ -22,7 +60,7 @@ async function initOptions(){
 
 async function populateRooms(floorId){
 	const sel = $('#q-room');
-	sel.innerHTML = '<option value="">全部房間</option>';
+	sel.innerHTML = '<option value="">全部區域</option>';
 	if(!floorId) return;
 	const rooms = await fetchJSON(`/api/rooms?floor_id=${encodeURIComponent(floorId)}`);
 	for(const r of rooms){ sel.insertAdjacentHTML('beforeend', `<option value="${r.id}">${r.name}</option>`); }
@@ -39,12 +77,28 @@ async function search(){
 	const rows = await fetchJSON(u.toString());
 	const container = $('#results'); container.innerHTML='';
 	for(const r of rows){
+		const st = mapStatus(r.status);
+		const borrowLine = r.status === 'borrowed' ? `
+			<div style="margin-top:6px; font-size:13px; color:#555;">
+				${r.borrower?`借用人：${r.borrower}`:''}<br>
+				${r.borrow_location?`借用地點：${r.borrow_location}`:''}<br>
+				${r.borrow_at?`借出時間：${fmt(r.borrow_at)}`:''}
+			</div>
+		` : r.status === 'returned' ? `
+			<div style="margin-top:6px; font-size:13px; color:#555;">
+				${r.returned_at?`歸還時間：${fmt(r.returned_at)}`:''}
+			</div>
+		` : '';
 		container.insertAdjacentHTML('beforeend', `
 			<div class="item">
 				${r.image_path?`<img class="zoomable" src="${r.image_path}" alt="${r.name}">`:''}
-				<h3>${r.name}</h3>
-				<div><span class="badge">${r.floor_name}</span><span class="badge">${r.room_name}</span></div>
+				<h3><span class="badge ${st.cls}">${st.label}</span>${r.name}</h3>
+				<div>
+					<span class="badge">${r.floor_name}</span>
+					<span class="badge">${r.room_name}</span>
+				</div>
 				<p>${r.description||''}</p>
+				${borrowLine}
 			</div>
 		`);
 	}
