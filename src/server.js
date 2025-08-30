@@ -32,13 +32,40 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.use('/uploads', express.static(uploadsDir));
+
+// 靜態檔案服務 - 為 Tunnelmole 重新啟用
 app.use('/', express.static(path.join(__dirname, '..', 'public')));
+
+// 確保 API 路由優先於靜態檔案
+app.use('/api', (req, res, next) => {
+    // 如果請求的是 API 路由，繼續到下一個中間件
+    if (req.path.startsWith('/')) {
+        return next();
+    }
+    // 否則返回 404
+    res.status(404).json({ error: 'API endpoint not found' });
+});
 
 // Floors
 app.get('/api/floors', async (req, res) => {
 	try {
-		const floors = await allQuery('SELECT id, name FROM floors ORDER BY name');
-		res.json(floors);
+		// 先取得所有樓層，然後在 JavaScript 中排序
+		const floors = await allQuery('SELECT id, name FROM floors');
+		
+		// 將中文數字轉換為阿拉伯數字進行排序
+		const sortedFloors = floors.sort((a, b) => {
+			const getFloorNumber = (name) => {
+				const numMap = {
+					'一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+					'六': 6, '七': 7, '八': 8, '九': 9, '十': 10
+				};
+				const chineseNum = name.replace(/樓|樓層/g, '');
+				return numMap[chineseNum] || parseInt(chineseNum) || 0;
+			};
+			return getFloorNumber(a.name) - getFloorNumber(b.name);
+		});
+		
+		res.json(sortedFloors);
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}
@@ -196,7 +223,7 @@ function getLocalIPs() {
 	return ips;
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
 	const localIPs = getLocalIPs();
 	console.log(`\n=== 倉儲管理系統伺服器已啟動 ===`);
 	console.log(`本機存取: http://localhost:${PORT}`);
@@ -206,6 +233,26 @@ app.listen(PORT, '0.0.0.0', () => {
 			console.log(`  http://${ip}:${PORT}`);
 		});
 	}
-	console.log(`\n其他裝置請使用上方區域網路 IP 地址存取`);
+	console.log(`\n=== Tunnelmole 設定 ===`);
+	console.log(`1. 安裝 Tunnelmole: npm install -g tunnelmole`);
+	console.log(`2. 啟動隧道: tunnelmole 3000`);
+	console.log(`3. 使用提供的網址存取系統`);
 	console.log(`========================================\n`);
+});
+
+// 捕獲未處理的異常
+process.on('uncaughtException', (err) => {
+	console.error('未捕獲的異常:', err);
+	server.close(() => {
+		console.log('伺服器已關閉');
+		process.exit(1);
+	});
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+	console.error('未處理的 Promise 拒絕:', reason);
+	server.close(() => {
+		console.log('伺服器已關閉');
+		process.exit(1);
+	});
 });

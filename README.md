@@ -1,11 +1,46 @@
-# 倉儲管理系統 - NAS 部署指南
+# 倉儲管理系統
 
-## 系統需求
+一個簡單易用的網頁版倉儲管理系統，支援物品管理、樓層/區域管理、圖片上傳等功能。
+
+## 功能特色
+
+- 📦 物品管理：新增、查詢、編輯、刪除物品
+- 🏢 樓層/區域管理：動態新增樓層和區域
+- 📸 圖片上傳：支援物品圖片上傳和預覽
+- 🔍 多種查詢：依名稱、樓層、區域查詢
+- 📱 響應式設計：支援手機和電腦瀏覽
+- 🔄 狀態管理：物品借用狀態追蹤
+
+## 部署方式
+
+### 方式一：Tunnelmole（推薦 - 快速外網存取）
+
+最簡單的部署方式，適合測試和臨時使用：
+
+1. **執行快速啟動腳本**
+   ```bash
+   start-tunnelmole.bat
+   ```
+
+2. **或手動執行**
+   ```bash
+   npm install
+   start /B node src/server.js
+   tunnelmole 3000
+   ```
+
+3. **使用提供的網址存取系統**
+
+詳細說明請參考：[TUNNELMOLE_DEPLOYMENT.md](TUNNELMOLE_DEPLOYMENT.md)
+
+### 方式二：NAS Docker 部署（推薦 - 長期使用）
+
+適合在 NAS 上長期部署：
+
+#### 系統需求
 - NAS 支援 Docker（Synology DSM 6.2+、QNAP QTS 4.3.4+、TrueNAS 等）
 - 至少 512MB RAM
 - 1GB 可用儲存空間
-
-## 部署方式
 
 ### 方式一：Docker Compose（推薦）
 
