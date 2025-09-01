@@ -1,4 +1,5 @@
 const express = require('express');
+const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -10,8 +11,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// app.use(express.json({ limit: '10mb' }));
+// app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb', parameterLimit: 50000}));
+// app.use(express.json({limit: "10mb", extended: true}))
+// app.use(express.urlencoded({limit: "10mb", extended: true, parameterLimit: 50000}))
 
 // 支援 NAS 部署的上傳目錄
 const uploadsDir = process.env.NODE_ENV === 'production' ? '/app/uploads' : path.join(__dirname, '..', 'uploads');
@@ -29,11 +34,29 @@ const storage = multer.diskStorage({
 		cb(null, `${timestamp}-${safeName}`);
 	},
 });
-const upload = multer({ storage });
+// 檔案過濾函數
+const fileFilter = (req, file, cb) => {
+	// 只允許圖片檔案
+	if (file.mimetype.startsWith('image/')) {
+		cb(null, true);
+	} else {
+		cb(new Error('只允許上傳圖片檔案'), false);
+	}
+};
+
+// 設定檔案上傳限制
+const upload = multer({ 
+	storage,
+	fileFilter,
+	limits: {
+		fileSize: 10 * 1024 * 1024, // 1MB 限制（進一步降低以適應 Tunnelmole）
+		files: 1 // 一次只能上傳一個檔案
+	}
+});
 
 app.use('/uploads', express.static(uploadsDir));
 
-// 靜態檔案服務 - 為 Tunnelmole 重新啟用
+// 靜態檔案服務
 app.use('/', express.static(path.join(__dirname, '..', 'public')));
 
 // 確保 API 路由優先於靜態檔案
@@ -126,15 +149,57 @@ app.delete('/api/rooms/:id', async (req, res) => {
 	}
 });
 
+// 包裝 multer 錯誤處理的函數
+function handleMulterUpload(uploadMiddleware) {
+	return (req, res, next) => {
+		uploadMiddleware(req, res, (err) => {
+			if (err instanceof multer.MulterError) {
+				if (err.code === 'LIMIT_FILE_SIZE') {
+					return res.status(413).json({ 
+						error: '檔案太大',
+						message: '檔案大小不能超過 5MB，請選擇較小的圖片或壓縮圖片後再上傳'
+					});
+				}
+				if (err.code === 'LIMIT_FILE_COUNT') {
+					return res.status(400).json({ 
+						error: '檔案數量過多',
+						message: '一次只能上傳一個檔案'
+					});
+				}
+				return res.status(400).json({ 
+					error: '檔案上傳錯誤',
+					message: err.message 
+				});
+			}
+			
+			if (err && err.message === '只允許上傳圖片檔案') {
+				return res.status(400).json({ 
+					error: '檔案類型錯誤',
+					message: '只允許上傳圖片檔案（JPG、PNG、GIF 等）'
+				});
+			}
+			
+			if (err) {
+				return res.status(500).json({ 
+					error: '上傳失敗',
+					message: err.message 
+				});
+			}
+			
+			next();
+		});
+	};
+}
+
 // Items
-app.post('/api/items', upload.single('image'), async (req, res) => {
+app.post('/api/items', handleMulterUpload(upload.single('image')), async (req, res) => {
 	try {
-		const { name, description, floor_id, room_id } = req.body;
+		const { name, description, floor_id, room_id, owner } = req.body;
 		if (!name || !floor_id || !room_id) return res.status(400).json({ error: 'name, floor_id, room_id are required' });
 		const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 		await runQuery(
-			'INSERT INTO items (name, description, floor_id, room_id, image_path) VALUES (?, ?, ?, ?, ?)',
-			[name, description || null, floor_id, room_id, imagePath]
+			'INSERT INTO items (name, description, floor_id, room_id, image_path, owner) VALUES (?, ?, ?, ?, ?, ?)',
+			[name, description || null, floor_id, room_id, imagePath, owner || null]
 		);
 		res.status(201).json({ success: true });
 	} catch (err) {
@@ -154,7 +219,7 @@ app.get('/api/items', async (req, res) => {
 		const sql = `
 			SELECT items.id, items.name, items.description, items.image_path,
 				items.floor_id, items.room_id, items.status, items.borrower, items.borrow_location,
-				items.borrow_at, items.returned_at,
+				items.borrow_at, items.returned_at, items.owner,
 				floors.name AS floor_name, rooms.name AS room_name
 			FROM items
 			JOIN floors ON items.floor_id = floors.id
@@ -169,9 +234,31 @@ app.get('/api/items', async (req, res) => {
 	}
 });
 
+app.get('/api/items/:id', async (req, res) => {
+	try {
+		const sql = `
+			SELECT items.id, items.name, items.description, items.image_path,
+				items.floor_id, items.room_id, items.status, items.borrower, items.borrow_location,
+				items.borrow_at, items.returned_at, items.owner,
+				floors.name AS floor_name, rooms.name AS room_name
+			FROM items
+			JOIN floors ON items.floor_id = floors.id
+			JOIN rooms ON items.room_id = rooms.id
+			WHERE items.id = ?
+		`;
+		const item = await getQuery(sql, [req.params.id]);
+		if (!item) {
+			return res.status(404).json({ error: 'Item not found' });
+		}
+		res.json(item);
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
 app.put('/api/items/:id', async (req, res) => {
 	try {
-		const { name, description, floor_id, room_id, status, borrower, borrow_location } = req.body;
+		const { name, description, floor_id, room_id, status, borrower, borrow_location, owner } = req.body;
 		if (!name) return res.status(400).json({ error: 'name is required' });
 		const fields = ['name = ?', 'description = ?'];
 		const values = [name, description || null];
@@ -192,6 +279,7 @@ app.put('/api/items/:id', async (req, res) => {
 		}
 		if (typeof borrower !== 'undefined') { fields.push('borrower = ?'); values.push(borrower || null); }
 		if (typeof borrow_location !== 'undefined') { fields.push('borrow_location = ?'); values.push(borrow_location || null); }
+		if (typeof owner !== 'undefined') { fields.push('owner = ?'); values.push(owner || null); }
 		values.push(req.params.id);
 		await runQuery(`UPDATE items SET ${fields.join(', ')} WHERE id = ?`, values);
 		res.json({ success: true });
@@ -202,8 +290,29 @@ app.put('/api/items/:id', async (req, res) => {
 
 app.delete('/api/items/:id', async (req, res) => {
 	try {
-		await runQuery('DELETE FROM items WHERE id = ?', [req.params.id]);
-		res.json({ success: true });
+		   // 先查詢該物品的圖片路徑
+		   const item = await getQuery('SELECT image_path FROM items WHERE id = ?', [req.params.id]);
+		   if (item && item.image_path) {
+			   // 處理絕對路徑
+			   let imagePath = item.image_path;
+			   // 處理 /uploads/ 開頭的路徑
+			   if (imagePath.startsWith('/uploads/')) {
+				   imagePath = path.join(uploadsDir, imagePath.replace(/^\/uploads[\\/]/, ''));
+			   } else if (!path.isAbsolute(imagePath)) {
+				   imagePath = path.join(uploadsDir, path.basename(imagePath));
+			   }
+			   // 刪除圖片檔案（若存在）
+			   try {
+				   if (fs.existsSync(imagePath)) {
+					   fs.unlinkSync(imagePath);
+				   }
+			   } catch (e) {
+				   // 不中斷流程，僅記錄錯誤
+				   console.error('刪除圖片失敗:', e);
+			   }
+		   }
+		   await runQuery('DELETE FROM items WHERE id = ?', [req.params.id]);
+		   res.json({ success: true });
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}
@@ -233,9 +342,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 			console.log(`  http://${ip}:${PORT}`);
 		});
 	}
-	console.log(`\n=== Tunnelmole 設定 ===`);
-	console.log(`1. 安裝 Tunnelmole: npm install -g tunnelmole`);
-	console.log(`2. 啟動隧道: tunnelmole 3000`);
+	console.log(`\n=== Cloudflared 設定 ===`);
+	console.log(`1. 安裝 cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/`);
+	console.log(`2. 啟動隧道: cloudflared tunnel --url http://localhost:${PORT}`);
 	console.log(`3. 使用提供的網址存取系統`);
 	console.log(`========================================\n`);
 });
@@ -248,7 +357,6 @@ process.on('uncaughtException', (err) => {
 		process.exit(1);
 	});
 });
-
 process.on('unhandledRejection', (reason, promise) => {
 	console.error('未處理的 Promise 拒絕:', reason);
 	server.close(() => {
@@ -256,3 +364,12 @@ process.on('unhandledRejection', (reason, promise) => {
 		process.exit(1);
 	});
 });
+/*
+cloudflared 的缺點或限制包括：
+1. 依賴 Cloudflare 帳號與服務，若 Cloudflare 出現問題會影響連線。
+2. 免費方案有流量與連線數限制，商業用途需評估。
+3. 需安裝 cloudflared 並維護 tunnel 程序，增加運維複雜度。
+4. 連線品質受 Cloudflare 節點影響，可能有延遲。
+5. 進階自訂（如自訂域名、存取控制）需額外設定。
+6. 伺服器本身仍需做好安全防護，cloudflared 只負責隧道連線。
+*/

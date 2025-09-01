@@ -96,6 +96,7 @@ async function search(){
 				<div>
 					<span class="badge">${r.floor_name}</span>
 					<span class="badge">${r.room_name}</span>
+					${r.owner?`<span class="badge owner">所屬：${r.owner}</span>`:''}
 				</div>
 				<p>${r.description||''}</p>
 				${borrowLine}

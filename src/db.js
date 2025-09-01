@@ -23,6 +23,7 @@ function applyMigrations(db) {
 		if (!existing.has('borrow_location')) alters.push("ALTER TABLE items ADD COLUMN borrow_location TEXT");
 		if (!existing.has('borrow_at')) alters.push("ALTER TABLE items ADD COLUMN borrow_at DATETIME");
 		if (!existing.has('returned_at')) alters.push("ALTER TABLE items ADD COLUMN returned_at DATETIME");
+		if (!existing.has('owner')) alters.push("ALTER TABLE items ADD COLUMN owner TEXT");
 		if (alters.length) {
 			alters.forEach(sql => db.run(sql));
 		}

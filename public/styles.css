@@ -60,6 +60,9 @@ li button{ width:auto; height:32px; padding:0 12px; margin-left:8px; border-radi
 .badge-borrowed{ background:#ef4444; }
 .badge-returned{ background:#f59e0b; color:#111; }
 
+/* 所屬人/單位徽章 */
+.badge.owner{ background:#f3e8ff; color:#7c3aed; border-color:#ddd6fe; }
+
 /* 對話框（管理頁） */
 dialog{ border:none; border-radius:20px; padding:0; background:transparent; }
 dialog::backdrop{ background:rgba(0,0,0,0.35); }

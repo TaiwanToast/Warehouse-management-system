@@ -61,7 +61,11 @@ async function search(){
 			<div class="item" data-id="${r.id}" data-floor-id="${r.floor_id}" data-room-id="${r.room_id}">
 				${r.image_path?`<img class="zoomable" src="${r.image_path}" alt="${r.name}">`:''}
 				<h3>${r.name}</h3>
-				<div><span class="badge">${r.floor_name}</span><span class="badge">${r.room_name}</span></div>
+				<div>
+					<span class="badge">${r.floor_name}</span>
+					<span class="badge">${r.room_name}</span>
+					${r.owner?`<span class="badge owner">所屬：${r.owner}</span>`:''}
+				</div>
 				<p>${r.description||''}</p>
 				<div class="flex">
 					<button class="edit">編輯</button>
@@ -117,6 +121,10 @@ function bind(){
 			const dlg = $('#editDialog');
 			const form = $('#editForm');
 			form.name.value = item.querySelector('h3').textContent;
+			// 從資料中取得 owner 值（需要從 API 重新取得完整資料）
+			const itemId = item.getAttribute('data-id');
+			const itemData = await fetchJSON(`/api/items/${itemId}`);
+			form.owner.value = itemData.owner || '';
 			form.description.value = item.querySelector('p').textContent;
 			await loadEditSelectors(item.dataset.floorId, item.dataset.roomId);
 			form.status && (form.status.value = 'available');
@@ -130,6 +138,7 @@ function bind(){
 					description: form.description.value.trim()||null,
 					floor_id: $('#edit-floor').value || null,
 					room_id: $('#edit-room').value || null,
+					owner: form.owner.value.trim()||null,
 					status: form.status ? form.status.value : undefined,
 					borrower: form.borrower ? form.borrower.value.trim()||null : undefined,
 					borrow_location: form.borrow_location ? form.borrow_location.value.trim()||null : undefined,

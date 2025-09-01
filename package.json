@@ -10,12 +10,16 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "一個簡單易用的網頁版倉儲管理系統，支援物品管理、樓層/區域管理、圖片上傳等功能。",
   "dependencies": {
+    "-": "^0.0.1",
+    "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "multer": "^2.0.2",
-    "sqlite3": "^5.1.7"
+    "save": "^2.9.0",
+    "sqlite3": "^5.1.7",
+    "tunnelmole": "^2.4.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

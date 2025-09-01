@@ -22,14 +22,19 @@
 			<h2>新增物品</h2>
 			<form id="item-form">
 				<input name="name" placeholder="物品名稱" required />
+				<input name="owner" placeholder="所屬人 或 單位（例如：知彥法師 或 法務）" />
 				<textarea name="description" placeholder="描述（選填）"></textarea>
 				<select name="floor_id" id="item-floor" required></select>
 				<select name="room_id" id="item-room" required></select>
 				<input type="file" name="image" accept="image/*" />
+				<div style="font-size:12px; color:#666; margin-top:4px;">
+					📷 支援 JPG、PNG、GIF 格式，檔案大小限制 5MB
+				</div>
 				<button type="submit">新增物品</button>
 			</form>
 		</section>
 	</main>
+	<script src="/image-compressor.js"></script>
 	<script src="/app.js"></script>
 </body>
 </html>

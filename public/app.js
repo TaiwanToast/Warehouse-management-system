@@ -45,13 +45,74 @@ function bindItemForm() {
 	if (!form) return;
 	form.addEventListener('submit', async (e) => {
 		e.preventDefault();
+		
+		// 檢查檔案大小和類型
+		const fileInput = form.querySelector('input[type="file"]');
+		if (fileInput.files.length > 0) {
+			const file = fileInput.files[0];
+			
+			// 檢查檔案類型
+			if (!file.type.startsWith('image/')) {
+				alert('檔案類型錯誤！只允許上傳圖片檔案（JPG、PNG、GIF 等）。');
+				return;
+			}
+			
+			// 檢查檔案大小
+			const maxSize = 5 * 1024 * 1024; // 5MB
+			if (file.size > maxSize) {
+				// 嘗試自動壓縮
+				if (window.imageCompressor && window.imageCompressor.needsCompression(file)) {
+					try {
+						const compressedFile = await window.imageCompressor.compress(file);
+						if (compressedFile.size <= maxSize) {
+							// 替換原始檔案
+							const dataTransfer = new DataTransfer();
+							dataTransfer.items.add(compressedFile);
+							fileInput.files = dataTransfer.files;
+							
+							const originalSize = (file.size / 1024 / 1024).toFixed(2);
+							const compressedSize = (compressedFile.size / 1024 / 1024).toFixed(2);
+							console.log(`圖片已自動壓縮：${originalSize}MB → ${compressedSize}MB`);
+						} else {
+							alert(`檔案太大！檔案大小不能超過 5MB。\n\n目前檔案大小：${(file.size / 1024 / 1024).toFixed(2)}MB\n建議：請選擇較小的圖片或手動壓縮圖片後再上傳。`);
+							return;
+						}
+					} catch (error) {
+						alert(`檔案太大！檔案大小不能超過 5MB。\n\n目前檔案大小：${(file.size / 1024 / 1024).toFixed(2)}MB\n建議：請選擇較小的圖片或手動壓縮圖片後再上傳。`);
+						return;
+					}
+				} else {
+					alert(`檔案太大！檔案大小不能超過 5MB。\n\n目前檔案大小：${(file.size / 1024 / 1024).toFixed(2)}MB\n建議：請選擇較小的圖片或手動壓縮圖片後再上傳。`);
+					return;
+				}
+			}
+		}
+		
 		const formData = new FormData(form);
-		const res = await fetch('/api/items', { method: 'POST', body: formData });
-		if (!res.ok) return alert(await res.text());
-		form.reset();
-		// 重置房間選單提示
-		await populateRoomsForItem('');
-		alert('新增成功');
+		try {
+			const res = await fetch('/api/items', { method: 'POST', body: formData });
+			if (!res.ok) {
+				const errorText = await res.text();
+				let errorMessage = '上傳失敗';
+				
+				try {
+					const errorData = JSON.parse(errorText);
+					errorMessage = errorData.message || errorData.error || errorMessage;
+				} catch {
+					errorMessage = errorText;
+				}
+				
+				alert(errorMessage);
+				return;
+			}
+			
+			form.reset();
+			// 重置房間選單提示
+			await populateRoomsForItem('');
+			alert('新增成功');
+		} catch (error) {
+			alert('網路錯誤，請檢查網路連接後重試');
+		}
 	});
 }
 
