@@ -10,13 +10,52 @@ const { runQuery, allQuery, getQuery } = require('./db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 維護模式中間件（放在所有路由之前）
+// maintenance.flag 檔案存在時啟用維護模式
+// app.use((req, res, next) => {
+// 	const flagPath = path.join(__dirname, '..', 'maintenance.flag');
+// 	if (fs.existsSync(flagPath)) {
+// 		if (req.path.startsWith('/api')) {
+// 			return res.status(503).json({ error: '系統維護中，請稍後再試' });
+// 		}
+// 		const maintenancePath = path.resolve(__dirname, '../public/maintenance.html');
+// 		console.log('維護頁面路徑:', maintenancePath);
+// 		if (!fs.existsSync(maintenancePath)) {
+// 			console.error('維護頁面不存在:', maintenancePath);
+// 			return res.status(500).send('維護頁面不存在，請確認 maintenance.html 檔案');
+// 		}
+// 		// 直接讀取檔案內容回傳，避免 static 路由攔截
+// 		const html = fs.readFileSync(maintenancePath, 'utf8');
+// 		res.setHeader('Content-Type', 'text/html; charset=utf-8');
+// 		return res.status(200).send(html);
+// 	}
+// 	next();
+// });
+
+// 維護模式中間件（放在所有路由之前）
+// maintenance.flag 檔案存在時啟用維護模式
+app.use((req, res, next) => {
+    const flagPath = path.join(__dirname, '..', 'maintenance.flag');
+    if (fs.existsSync(flagPath)) {
+        if (req.path.startsWith('/api')) {
+            return res.status(503).json({ error: '系統維護中，請稍後再試' });
+        }
+        const maintenancePath = path.resolve(__dirname, '../public/maintenance.html');
+        if (!fs.existsSync(maintenancePath)) {
+            console.error('維護頁面不存在:', maintenancePath);
+            return res.status(500).send('維護頁面不存在，請確認 maintenance.html 檔案');
+        }
+        // 直接用 res.send 讀取檔案內容
+        return res.send(fs.readFileSync(maintenancePath, 'utf8'));
+    }
+    next();
+});
+// 之後才是 static 路由
+app.use('/', express.static(path.join(__dirname, '..', 'public')));
+
 app.use(cors());
-// app.use(express.json({ limit: '10mb' }));
-// app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb', parameterLimit: 50000}));
-// app.use(express.json({limit: "10mb", extended: true}))
-// app.use(express.urlencoded({limit: "10mb", extended: true, parameterLimit: 50000}))
 
 // 支援 NAS 部署的上傳目錄
 const uploadsDir = process.env.NODE_ENV === 'production' ? '/app/uploads' : path.join(__dirname, '..', 'uploads');
