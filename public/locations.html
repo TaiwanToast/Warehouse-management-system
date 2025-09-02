@@ -9,13 +9,21 @@
 </head>
 <body>
 	<header>
-		<h1>惠中寺倉儲管理系統</h1>
-		<nav class="nav">
-			<a href="/">新增</a>
-			<a href="/search.html">查詢</a>
-			<a href="/manage.html">管理</a>
-			<a href="/locations.html" class="active">樓層與區域</a>
-		</nav>
+		<div style="display:flex; align-items:center; justify-content:space-between;">
+			<div style="display:flex; align-items:center; gap:2em;">
+				<h1>惠中寺倉儲管理系統</h1>
+				<nav class="nav" style="display:flex; align-items:center; gap:0.5em;">
+					<a href="/add.html">新增</a>
+					<a href="/search.html">查詢</a>
+					<a href="/manage.html">管理</a>
+					<a href="/locations.html" class="active">樓層與區域</a>
+				</nav>
+			</div>
+			<div id="user-info" style="display:flex; align-items:center; gap:8px;">
+				<span id="login-user-label" style="writing-mode:horizontal-tb; text-orientation:sideways; white-space:nowrap;"> </span>
+				<button id="logout-btn">登出</button>
+			</div>
+		</div>
 	</header>
 	<main>
 		<section class="panel">
@@ -42,5 +50,6 @@
 		</section>
 	</main>
 	<script src="/locations.js"></script>
+	<script src="/user-bar.js"></script>
 </body>
 </html>

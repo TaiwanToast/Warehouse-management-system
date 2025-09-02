@@ -119,4 +119,73 @@ function bindItemForm() {
 (async function main() {
 	await initItemSelectors();
 	bindItemForm();
+	await initUserSection();
 })();
+
+async function initUserSection() {
+	const registerBtn = document.getElementById('register-btn');
+	const registerInput = document.getElementById('register-username');
+	const loginSelect = document.getElementById('login-user-select');
+	const loginBtn = document.getElementById('login-btn');
+	const userMsg = document.getElementById('user-message');
+
+	// 載入所有用戶
+	async function loadUsers() {
+		loginSelect.innerHTML = '<option value="">請選擇使用者</option>';
+		try {
+			const users = await fetchJSON('/api/users');
+			for (const u of users) {
+				loginSelect.insertAdjacentHTML('beforeend', `<option value="${u.id}">${u.username}</option>`);
+			}
+		} catch (e) {
+			loginSelect.insertAdjacentHTML('beforeend', `<option value="">載入失敗</option>`);
+		}
+	}
+	await loadUsers();
+
+	// 註冊事件
+	registerBtn.addEventListener('click', async () => {
+		const username = registerInput.value.trim();
+		if (!username) {
+			userMsg.style.color = 'red';
+			userMsg.textContent = '請輸入使用者名稱';
+			return;
+		}
+		try {
+			const res = await fetch('/api/users', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ username })
+			});
+			if (!res.ok) {
+				const err = await res.json();
+				userMsg.style.color = 'red';
+				userMsg.textContent = err.error || '註冊失敗';
+				return;
+			}
+			userMsg.style.color = 'green';
+			userMsg.textContent = '註冊成功';
+			registerInput.value = '';
+			await loadUsers();
+		} catch (e) {
+			userMsg.style.color = 'red';
+			userMsg.textContent = '網路錯誤';
+		}
+	});
+
+	// 登入事件
+	loginBtn.addEventListener('click', () => {
+		const userId = loginSelect.value;
+		const username = loginSelect.options[loginSelect.selectedIndex]?.text;
+		if (!userId) {
+			userMsg.style.color = 'red';
+			userMsg.textContent = '請選擇使用者';
+			return;
+		}
+		userMsg.style.color = 'green';
+		userMsg.textContent = `已登入：${username}`;
+		// 這裡可用 localStorage 儲存登入狀態
+		localStorage.setItem('loginUserId', userId);
+		localStorage.setItem('loginUsername', username);
+	});
+}

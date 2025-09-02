@@ -10,31 +10,35 @@
 <body>
 	<header>
 		<h1>惠中寺倉儲管理系統</h1>
-		<nav class="nav">
-			<a href="/" class="active">新增</a>
-			<a href="/search.html">查詢</a>
-			<a href="/manage.html">管理</a>
-			<a href="/locations.html">樓層與區域</a>
-		</nav>
 	</header>
 	<main>
-		<section class="panel">
-			<h2>新增物品</h2>
-			<form id="item-form">
-				<input name="name" placeholder="物品名稱" required />
-				<input name="owner" placeholder="所屬人 或 單位（例如：知彥法師 或 法務）" />
-				<textarea name="description" placeholder="描述（選填）"></textarea>
-				<select name="floor_id" id="item-floor" required></select>
-				<select name="room_id" id="item-room" required></select>
-				<input type="file" name="image" accept="image/*" />
-				<div style="font-size:12px; color:#666; margin-top:4px;">
-					📷 支援 JPG、PNG、GIF 格式，檔案大小限制 5MB
-				</div>
-				<button type="submit">新增物品</button>
-			</form>
+		<section id="user-section" style="margin-bottom:2em;">
+			<h2>使用者註冊與登入</h2>
+			<div>
+				<a href="/register.html" class="button">前往註冊新使用者</a>
+			</div>
+			<div style="margin-top:1em;">
+				<select id="login-user-select">
+					<option value="">請選擇使用者</option>
+				</select>
+				<button id="login-btn">登入</button>
+			</div>
+			<div id="user-message" style="color:green;margin-top:1em;"></div>
 		</section>
 	</main>
-	<script src="/image-compressor.js"></script>
 	<script src="/app.js"></script>
+	<script>
+	document.getElementById('login-btn').addEventListener('click', function() {
+		const select = document.getElementById('login-user-select');
+		const userId = select.value;
+		const username = select.options[select.selectedIndex]?.text;
+		if (userId) {
+			localStorage.setItem('loginUserId', userId);
+			localStorage.setItem('loginUsername', username);
+			window.location.href = '/add.html';
+		}
+	});
+	</script>
 </body>
+	<script src="/app.js"></script>
 </html>

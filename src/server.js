@@ -12,28 +12,6 @@ const PORT = process.env.PORT || 3000;
 
 // 維護模式中間件（放在所有路由之前）
 // maintenance.flag 檔案存在時啟用維護模式
-// app.use((req, res, next) => {
-// 	const flagPath = path.join(__dirname, '..', 'maintenance.flag');
-// 	if (fs.existsSync(flagPath)) {
-// 		if (req.path.startsWith('/api')) {
-// 			return res.status(503).json({ error: '系統維護中，請稍後再試' });
-// 		}
-// 		const maintenancePath = path.resolve(__dirname, '../public/maintenance.html');
-// 		console.log('維護頁面路徑:', maintenancePath);
-// 		if (!fs.existsSync(maintenancePath)) {
-// 			console.error('維護頁面不存在:', maintenancePath);
-// 			return res.status(500).send('維護頁面不存在，請確認 maintenance.html 檔案');
-// 		}
-// 		// 直接讀取檔案內容回傳，避免 static 路由攔截
-// 		const html = fs.readFileSync(maintenancePath, 'utf8');
-// 		res.setHeader('Content-Type', 'text/html; charset=utf-8');
-// 		return res.status(200).send(html);
-// 	}
-// 	next();
-// });
-
-// 維護模式中間件（放在所有路由之前）
-// maintenance.flag 檔案存在時啟用維護模式
 app.use((req, res, next) => {
     const flagPath = path.join(__dirname, '..', 'maintenance.flag');
     if (fs.existsSync(flagPath)) {
@@ -241,6 +219,32 @@ app.post('/api/items', handleMulterUpload(upload.single('image')), async (req, r
 			[name, description || null, floor_id, room_id, imagePath, owner || null]
 		);
 		res.status(201).json({ success: true });
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
+// 用戶註冊
+app.post('/api/users', async (req, res) => {
+	try {
+		const { username } = req.body;
+		if (!username) return res.status(400).json({ error: 'username is required' });
+		await runQuery('INSERT INTO users (username) VALUES (?)', [username]);
+		const user = await getQuery('SELECT id, username FROM users WHERE username = ?', [username]);
+		res.status(201).json(user);
+	} catch (err) {
+		if (err.message.includes('UNIQUE')) {
+			return res.status(409).json({ error: '使用者名稱已存在' });
+		}
+		res.status(500).json({ error: err.message });
+	}
+});
+
+// 取得所有用戶
+app.get('/api/users', async (req, res) => {
+	try {
+		const users = await allQuery('SELECT id, username FROM users ORDER BY created_at DESC');
+		res.json(users);
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}

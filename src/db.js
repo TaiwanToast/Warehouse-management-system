@@ -28,6 +28,17 @@ function applyMigrations(db) {
 			alters.forEach(sql => db.run(sql));
 		}
 	});
+	// 檢查並建立 users 表格（如不存在）
+	db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'", [], (err, row) => {
+		if (err) return;
+		if (!row) {
+			db.run(`CREATE TABLE IF NOT EXISTS users (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				username TEXT NOT NULL UNIQUE,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)`);
+		}
+	});
 }
 
 function ensureDatabaseInitialized() {
