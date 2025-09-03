@@ -3,7 +3,8 @@
 const $ = (s)=>document.querySelector(s);
 
 async function fetchJSON(url){
-	const r = await fetch(url);
+	const userId = localStorage.getItem('loginUserId');
+	const r = await fetch(url, { headers: userId? { 'x-user-id': userId } : {} });
 	if(!r.ok) throw new Error(await r.text());
 	return r.json();
 }
@@ -90,13 +91,14 @@ async function search(){
 			</div>
 		` : '';
 		container.insertAdjacentHTML('beforeend', `
-			<div class="item">
+			<div class="item" data-id="${r.id}">
 				${r.image_path?`<img class="zoomable" src="${r.image_path}" alt="${r.name}">`:''}
 				<h3><span class="badge ${st.cls}">${st.label}</span>${r.name}</h3>
 				<div>
 					<span class="badge">${r.floor_name}</span>
 					<span class="badge">${r.room_name}</span>
 					${r.owner?`<span class="badge owner">所屬：${r.owner}</span>`:''}
+					${(r.quantity!==undefined && r.quantity!==null)?`<span class="badge" style="${Number(r.quantity)===0?'background:#dc3545;color:#fff;':''}">數量：${r.quantity}</span>`:''}
 				</div>
 				<p>${r.description||''}</p>
 				${borrowLine}
@@ -104,6 +106,7 @@ async function search(){
 		`);
 	}
 	bindImagePreview();
+	bindHistoryClick();
 }
 
 function bindImagePreview(){
@@ -113,6 +116,38 @@ function bindImagePreview(){
 	dlg.addEventListener('click', (e)=>{ if(e.target === dlg) dlg.close(); });
 	$('#results').querySelectorAll('img.zoomable').forEach(el => {
 		el.addEventListener('click', ()=>{ img.src = el.src; img.alt = el.alt||'預覽'; dlg.showModal(); });
+	});
+}
+
+function bindHistoryClick(){
+	const dlg = document.getElementById('historyDialog');
+	const list = document.getElementById('historyList');
+	const closeBtn = document.getElementById('closeHistory');
+	if(!dlg||!list||!closeBtn) return;
+	closeBtn.onclick = ()=> dlg.close();
+	dlg.addEventListener('click', (e)=>{ if(e.target === dlg) dlg.close(); });
+	document.querySelectorAll('#results .item').forEach(card => {
+		const img = card.querySelector('img.zoomable');
+		card.addEventListener('click', async (e)=>{
+			if(img && img.contains(e.target)) return; // 交給圖片預覽
+			const id = card.getAttribute('data-id');
+			try{
+				const userId = localStorage.getItem('loginUserId');
+				const r = await fetch(`/api/items/${id}/history`, { headers: userId? { 'x-user-id': userId } : {} });
+				if(!r.ok){ throw new Error(await r.text()); }
+				const rows = await r.json();
+				list.innerHTML = rows.map(h=>{
+					let changes = '';
+					try{ const obj = h.changes? JSON.parse(h.changes):{}; changes = `<pre style="white-space:pre-wrap;">${JSON.stringify(obj,null,2)}</pre>`; }catch{ changes = h.changes||''; }
+					return `<div style="border-bottom:1px solid var(--border); padding:8px 0;">
+						<div style="font-weight:600;">${h.action}</div>
+						<div style="font-size:12px; color:#666;">${h.created_at}</div>
+						${changes}
+					</div>`;
+				}).join('') || '<div>目前沒有紀錄</div>';
+				dlg.showModal();
+			}catch(err){ alert('載入歷史失敗'); }
+		});
 	});
 }
 

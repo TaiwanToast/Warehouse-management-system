@@ -3,12 +3,16 @@
 const $ = (s)=>document.querySelector(s);
 
 async function fetchJSON(url){
-	const r = await fetch(url);
+	const userId = localStorage.getItem('loginUserId');
+	const r = await fetch(url, { headers: userId? { 'x-user-id': userId } : {} });
 	if(!r.ok) throw new Error(await r.text());
 	return r.json();
 }
 async function sendJSON(url, method, body){
-	const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+	const userId = localStorage.getItem('loginUserId');
+	const headers = { 'Content-Type':'application/json' };
+	if(userId) headers['x-user-id'] = userId;
+	const r = await fetch(url, { method, headers, body: JSON.stringify(body)});
 	if(!r.ok) throw new Error(await r.text());
 	return r.json();
 }
@@ -120,16 +124,50 @@ function bind(){
 		if(e.target.classList.contains('edit')){
 			const dlg = $('#editDialog');
 			const form = $('#editForm');
+			
+			// 除錯：顯示當前使用者ID
+			const currentUserId = localStorage.getItem('loginUserId');
+			console.log('當前使用者ID:', currentUserId);
+			console.log('要編輯的物品ID:', id);
+			
 			form.name.value = item.querySelector('h3').textContent;
-			// 從資料中取得 owner 值（需要從 API 重新取得完整資料）
+			// 取得完整資料（但不再編輯 owner）
 			const itemId = item.getAttribute('data-id');
 			const itemData = await fetchJSON(`/api/items/${itemId}`);
-			form.owner.value = itemData.owner || '';
+			const ownerSpan = document.getElementById('ownerNameEdit');
+			if(ownerSpan){
+				const username = localStorage.getItem('loginUsername');
+				ownerSpan.textContent = username ? username : (itemData.owner || '（未登入）');
+			}
+			form.quantity.value = itemData.quantity ?? 1;
 			form.description.value = item.querySelector('p').textContent;
 			await loadEditSelectors(item.dataset.floorId, item.dataset.roomId);
 			form.status && (form.status.value = 'available');
 			form.borrower && (form.borrower.value = '');
 			form.borrow_location && (form.borrow_location.value = '');
+			const dispatchAmountInput = document.getElementById('dispatch-amount');
+			const statusSel = document.getElementById('edit-status');
+			function updateFieldsByStatus(){
+				if(!statusSel) return;
+				if(statusSel.value === 'borrowed'){
+					form.borrower.style.display = '';
+					form.borrower.placeholder = '借用人（狀態為借出中時填寫）';
+					form.borrow_location.style.display = '';
+					dispatchAmountInput.style.display = 'none';
+				}else if(statusSel.value === 'dispatch'){
+					form.borrower.style.display = '';
+					form.borrower.placeholder = '送出對象';
+					form.borrow_location.style.display = 'none';
+					dispatchAmountInput.style.display = '';
+					dispatchAmountInput.value = '1';
+				}else{
+					form.borrower.style.display = 'none';
+					form.borrow_location.style.display = 'none';
+					dispatchAmountInput.style.display = 'none';
+				}
+			}
+			statusSel && statusSel.addEventListener('change', updateFieldsByStatus);
+			updateFieldsByStatus();
 			dlg.returnValue='';
 			dlg.showModal();
 			$('#saveEdit').onclick = async ()=>{
@@ -138,19 +176,44 @@ function bind(){
 					description: form.description.value.trim()||null,
 					floor_id: $('#edit-floor').value || null,
 					room_id: $('#edit-room').value || null,
-					owner: form.owner.value.trim()||null,
-					status: form.status ? form.status.value : undefined,
+					// owner 由後端依登入者自動帶入
+					quantity: form.quantity.value === '' ? undefined : parseInt(form.quantity.value,10),
+					status: form.status ? (form.status.value==='dispatch'?'available':form.status.value) : undefined,
 					borrower: form.borrower ? form.borrower.value.trim()||null : undefined,
 					borrow_location: form.borrow_location ? form.borrow_location.value.trim()||null : undefined,
 				};
 				await sendJSON(`/api/items/${id}`, 'PUT', payload);
+				// 若選擇送出，於儲存後呼叫 dispatch API 扣庫存
+				if(form.status && form.status.value === 'dispatch'){
+					const amt = parseInt(dispatchAmountInput.value,10);
+					if(!Number.isInteger(amt) || amt<=0){ alert('請輸入正整數的送出數量'); return; }
+					try{
+						await sendJSON(`/api/items/${id}/dispatch`, 'POST', { amount: amt });
+					}catch(e){
+						try{
+							const err = JSON.parse(e.message);
+							if(err && err.error){
+								alert(err.error);
+								return;
+							}
+						}catch{}
+						alert('庫存不足');
+						return;
+					}
+				}
 				dlg.close();
 				await search();
 			};
+
+
 		}
 		if(e.target.classList.contains('delete')){
 			if(!confirm('確定要刪除？')) return;
-			await fetch(`/api/items/${id}`, { method:'DELETE' });
+			const userId = localStorage.getItem('loginUserId');
+			await fetch(`/api/items/${id}`, { 
+				method:'DELETE',
+				headers: userId ? { 'x-user-id': userId } : {}
+			});
 			await search();
 		}
 	});

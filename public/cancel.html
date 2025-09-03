@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>註銷帳號 - 倉儲管理系統</title>
+	<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+	<header class="navbar">
+		<nav class="nav">
+			<a href="/add.html" class="nav-link">新增</a>
+			<a href="/search.html" class="nav-link">查詢</a>
+			<a href="/manage.html" class="nav-link">管理</a>
+			<a href="/locations.html" class="nav-link">地點</a>
+			<a href="/cancel.html" class="nav-link active">註銷</a>
+		</nav>
+	</header>
+	<main class="container">
+		<h1>註銷帳號</h1>
+		<p>註銷後，您的帳號與「所屬為您」的所有物品、歷史紀錄與圖片都會被永久刪除，且不可恢復。</p>
+		<div class="card">
+			<label class="field">
+				<span>請輸入「確認註銷」以繼續</span>
+				<input id="confirmText" type="text" placeholder="確認註銷">
+			</label>
+			<button id="deleteBtn" class="btn btn-danger" style="margin-top:12px">永久刪除並註銷</button>
+		</div>
+		<p id="result" class="muted" style="margin-top:12px"></p>
+	</main>
+	<script src="/user-bar.js"></script>
+	<script src="/cancel.js"></script>
+</body>
+</html>
+

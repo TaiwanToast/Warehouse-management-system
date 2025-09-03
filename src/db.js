@@ -18,12 +18,17 @@ function applyMigrations(db) {
 		if (err) return; // 靜默失敗避免中斷啟動
 		const existing = new Set(rows.map(r => r.name));
 		const alters = [];
+		// 基礎業務欄位
 		if (!existing.has('status')) alters.push("ALTER TABLE items ADD COLUMN status TEXT DEFAULT 'available'");
 		if (!existing.has('borrower')) alters.push("ALTER TABLE items ADD COLUMN borrower TEXT");
 		if (!existing.has('borrow_location')) alters.push("ALTER TABLE items ADD COLUMN borrow_location TEXT");
 		if (!existing.has('borrow_at')) alters.push("ALTER TABLE items ADD COLUMN borrow_at DATETIME");
 		if (!existing.has('returned_at')) alters.push("ALTER TABLE items ADD COLUMN returned_at DATETIME");
 		if (!existing.has('owner')) alters.push("ALTER TABLE items ADD COLUMN owner TEXT");
+		// 數量欄位（預設 1）
+		if (!existing.has('quantity')) alters.push("ALTER TABLE items ADD COLUMN quantity INTEGER DEFAULT 1");
+		// 擁有者使用者 ID（用於權限）
+		if (!existing.has('owner_user_id')) alters.push("ALTER TABLE items ADD COLUMN owner_user_id INTEGER");
 		if (alters.length) {
 			alters.forEach(sql => db.run(sql));
 		}
@@ -36,6 +41,22 @@ function applyMigrations(db) {
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
 				username TEXT NOT NULL UNIQUE,
 				created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)`);
+		}
+	});
+
+	// 建立 item_history 表（若不存在）
+	db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='item_history'", [], (err, row) => {
+		if (err) return;
+		if (!row) {
+			db.run(`CREATE TABLE IF NOT EXISTS item_history (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				item_id INTEGER NOT NULL,
+				user_id INTEGER NOT NULL,
+				action TEXT NOT NULL,
+				changes TEXT,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 			)`);
 		}
 	});

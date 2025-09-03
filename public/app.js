@@ -3,7 +3,8 @@
 const $ = (sel) => document.querySelector(sel);
 
 async function fetchJSON(url) {
-	const res = await fetch(url);
+	const userId = localStorage.getItem('loginUserId');
+	const res = await fetch(url, { headers: userId ? { 'x-user-id': userId } : {} });
 	if (!res.ok) throw new Error(await res.text());
 	return res.json();
 }
@@ -89,8 +90,11 @@ function bindItemForm() {
 		}
 		
 		const formData = new FormData(form);
+		// 不再從表單送出 owner，後端會依登入者自動設定
+		formData.delete('owner');
 		try {
-			const res = await fetch('/api/items', { method: 'POST', body: formData });
+			const userId = localStorage.getItem('loginUserId');
+			const res = await fetch('/api/items', { method: 'POST', headers: userId? { 'x-user-id': userId } : {}, body: formData });
 			if (!res.ok) {
 				const errorText = await res.text();
 				let errorMessage = '上傳失敗';
@@ -120,6 +124,22 @@ function bindItemForm() {
 	await initItemSelectors();
 	bindItemForm();
 	await initUserSection();
+	function updateOwner() {
+		const ownerSpan = document.getElementById('ownerName');
+		if (!ownerSpan) return;
+		const username = localStorage.getItem('loginUsername');
+		ownerSpan.textContent = username ? username : '（未登入）';
+	}
+	updateOwner();
+	let last = localStorage.getItem('loginUsername') || '';
+	setInterval(()=>{
+		const cur = localStorage.getItem('loginUsername') || '';
+		if (cur !== last) { last = cur; updateOwner(); }
+	}, 800);
+	window.addEventListener('storage', (e)=>{
+		if(e.key === 'loginUsername' || e.key === 'loginUserId') updateOwner();
+	});
+	window.addEventListener('focus', updateOwner);
 })();
 
 async function initUserSection() {
@@ -128,6 +148,11 @@ async function initUserSection() {
 	const loginSelect = document.getElementById('login-user-select');
 	const loginBtn = document.getElementById('login-btn');
 	const userMsg = document.getElementById('user-message');
+
+	// 若頁面沒有這些元件（例如 add.html），直接跳過初始化
+	if (!loginSelect || !loginBtn) {
+		return;
+	}
 
 	// 載入所有用戶
 	async function loadUsers() {
@@ -144,11 +169,10 @@ async function initUserSection() {
 	await loadUsers();
 
 	// 註冊事件
-	registerBtn.addEventListener('click', async () => {
+	registerBtn && registerBtn.addEventListener('click', async () => {
 		const username = registerInput.value.trim();
 		if (!username) {
-			userMsg.style.color = 'red';
-			userMsg.textContent = '請輸入使用者名稱';
+			if (userMsg) { userMsg.style.color = 'red'; userMsg.textContent = '請輸入使用者名稱'; }
 			return;
 		}
 		try {
@@ -159,17 +183,14 @@ async function initUserSection() {
 			});
 			if (!res.ok) {
 				const err = await res.json();
-				userMsg.style.color = 'red';
-				userMsg.textContent = err.error || '註冊失敗';
+				if (userMsg) { userMsg.style.color = 'red'; userMsg.textContent = err.error || '註冊失敗'; }
 				return;
 			}
-			userMsg.style.color = 'green';
-			userMsg.textContent = '註冊成功';
-			registerInput.value = '';
+			if (userMsg) { userMsg.style.color = 'green'; userMsg.textContent = '註冊成功'; }
+			if (registerInput) registerInput.value = '';
 			await loadUsers();
 		} catch (e) {
-			userMsg.style.color = 'red';
-			userMsg.textContent = '網路錯誤';
+			if (userMsg) { userMsg.style.color = 'red'; userMsg.textContent = '網路錯誤'; }
 		}
 	});
 
@@ -187,5 +208,8 @@ async function initUserSection() {
 		// 這裡可用 localStorage 儲存登入狀態
 		localStorage.setItem('loginUserId', userId);
 		localStorage.setItem('loginUsername', username);
+		// 立即更新新增頁「所屬人」顯示
+		const ownerSpan = document.getElementById('ownerName');
+		if (ownerSpan) ownerSpan.textContent = username || '（未登入）';
 	});
 }

@@ -10,20 +10,18 @@
 <body>
 	<header>
 		<div style="display:flex; align-items:center; justify-content:space-between;">
-			<div style="display:flex; align-items:center; gap:2em;">
-				<h1>惠中寺倉儲管理系統</h1>
-				<nav class="nav" style="display:flex; align-items:center; gap:0.5em;">
-					<a href="/add.html">新增</a>
-					<a href="/search.html">查詢</a>
-					<a href="/manage.html" class="active">管理</a>
-					<a href="/locations.html">樓層與區域</a>
-				</nav>
-			</div>
+			<h1 style="margin-bottom:0;">惠中寺倉儲管理系統</h1>
 			<div id="user-info" style="display:flex; align-items:center; gap:8px;">
 				<span id="login-user-label" style="writing-mode:horizontal-tb; text-orientation:sideways; white-space:nowrap;"> </span>
 				<button id="logout-btn">登出</button>
 			</div>
 		</div>
+		<nav class="nav" style="display:flex; align-items:center; gap:0.5em; margin-top:8px;">
+			<a href="/add.html">新增</a>
+			<a href="/search.html">查詢</a>
+			<a href="/manage.html" class="active">管理</a>
+			<a href="/locations.html">樓層與區域</a>
+		</nav>
 	</header>
 	<main>
 		<section class="panel">
@@ -40,8 +38,11 @@
 			<form method="dialog" id="editForm">
 				<h3>編輯物品</h3>
 				<input name="name" placeholder="物品名稱" required />
-				<input name="owner" placeholder="所屬人 或 單位（例如：知彥法師 或 法務）" />
+				<input name="quantity" type="number" min="0" step="1" placeholder="數量" />
 				<textarea name="description" placeholder="描述（選填）"></textarea>
+				<div id="owner-line-edit" style="font-size:14px; color:#555; margin:4px 0 8px;">
+					所屬人：<span id="ownerNameEdit">（未登入）</span>（自動）
+				</div>
 				<select name="floor_id" id="edit-floor" required>
 					<option value="">選擇樓層</option>
 				</select>
@@ -53,8 +54,10 @@
 					<option value="available">可用</option>
 					<option value="borrowed">借出中</option>
 					<option value="returned">已歸還</option>
+					<option value="dispatch">送出</option>
 				</select>
 				<input name="borrower" id="edit-borrower" placeholder="借用人（狀態為借出中時填寫）" />
+				<input name="dispatch_amount" id="dispatch-amount" type="number" min="1" step="1" placeholder="送出數量" style="display:none;" />
 				<input name="borrow_location" id="edit-borrow-location" placeholder="借用地點（狀態為借出中時填寫）" />
 				<button id="saveEdit" value="default" style="width:100%; font-size:16px; padding:12px; margin-bottom:8px;">儲存</button>
 				<button value="cancel" style="background:#dc3545; width:100%; font-size:14px; padding:8px;">取消</button>

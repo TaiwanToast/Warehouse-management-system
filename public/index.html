@@ -6,6 +6,12 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>惠中寺倉儲管理系統 - 新增</title>
 	<link rel="stylesheet" href="/styles.css" />
+    <script>
+    // 已登入者自動導向新增頁
+    (function(){
+        try{ if(localStorage.getItem('loginUserId')) { window.location.replace('/add.html'); } }catch(e){}
+    })();
+    </script>
 </head>
 <body>
 	<header>
@@ -40,5 +46,4 @@
 	});
 	</script>
 </body>
-	<script src="/app.js"></script>
 </html>

@@ -10,27 +10,28 @@
 <body>
 	   <header>
 		   <div style="display:flex; align-items:center; justify-content:space-between;">
-			   <div style="display:flex; align-items:center; gap:2em;">
-				   <h1>惠中寺倉儲管理系統</h1>
-				   <nav class="nav" style="display:flex; align-items:center; gap:0.5em;">
-					   <a href="/add.html" class="active">新增</a>
-					   <a href="/search.html">查詢</a>
-					   <a href="/manage.html">管理</a>
-					   <a href="/locations.html">樓層與區域</a>
-				   </nav>
-			   </div>
+			   <h1 style="margin-bottom:0;">惠中寺倉儲管理系統</h1>
 			   <div id="user-info" style="display:flex; align-items:center; gap:8px;">
 				   <span id="login-user-label" style="writing-mode:horizontal-tb; text-orientation:sideways; white-space:nowrap;"> </span>
 				   <button id="logout-btn">登出</button>
 			   </div>
 		   </div>
+		   <nav class="nav" style="display:flex; align-items:center; gap:0.5em; margin-top:8px;">
+			   <a href="/add.html" class="active">新增</a>
+			   <a href="/search.html">查詢</a>
+			   <a href="/manage.html">管理</a>
+			   <a href="/locations.html">樓層與區域</a>
+		   </nav>
 	   </header>
 	<main>
 		<section class="panel">
 			<h2>新增物品</h2>
 			<form id="item-form">
 				<input name="name" placeholder="物品名稱" required />
-				<input name="owner" placeholder="所屬人 或 單位（例如：知彥法師 或 法務）" />
+				<input name="quantity" type="number" min="0" step="1" value="1" placeholder="數量" />
+				<div id="owner-line" style="font-size:14px; color:#555; margin:4px 0 8px;">
+					所屬人：<span id="ownerName">（未登入）</span>（自動）
+				</div>
 				<textarea name="description" placeholder="描述（選填）"></textarea>
 				<select name="floor_id" id="item-floor" required></select>
 				<select name="room_id" id="item-room" required></select>
