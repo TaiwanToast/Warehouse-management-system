@@ -27,6 +27,8 @@ function applyMigrations(db) {
 		if (!existing.has('owner')) alters.push("ALTER TABLE items ADD COLUMN owner TEXT");
 		// 數量欄位（預設 1）
 		if (!existing.has('quantity')) alters.push("ALTER TABLE items ADD COLUMN quantity INTEGER DEFAULT 1");
+		// 借出數量欄位（預設 0）
+		if (!existing.has('borrow_quantity')) alters.push("ALTER TABLE items ADD COLUMN borrow_quantity INTEGER DEFAULT 0");
 		// 擁有者使用者 ID（用於權限）
 		if (!existing.has('owner_user_id')) alters.push("ALTER TABLE items ADD COLUMN owner_user_id INTEGER");
 		if (alters.length) {

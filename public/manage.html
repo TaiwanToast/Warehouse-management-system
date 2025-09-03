@@ -57,11 +57,19 @@
 					<option value="dispatch">送出</option>
 				</select>
 				<input name="borrower" id="edit-borrower" placeholder="借用人（狀態為借出中時填寫）" />
+				<input name="borrow_quantity" id="edit-borrow-quantity" type="number" min="1" step="1" placeholder="借出數量（狀態為借出中時填寫）" style="display:none;" />
 				<input name="dispatch_amount" id="dispatch-amount" type="number" min="1" step="1" placeholder="送出數量" style="display:none;" />
 				<input name="borrow_location" id="edit-borrow-location" placeholder="借用地點（狀態為借出中時填寫）" />
 				<button id="saveEdit" value="default" style="width:100%; font-size:16px; padding:12px; margin-bottom:8px;">儲存</button>
 				<button value="cancel" style="background:#dc3545; width:100%; font-size:14px; padding:8px;">取消</button>
 			</form>
+		</dialog>
+		<dialog id="imgDialog">
+			<div style="padding:16px;">
+				<h3>圖片預覽</h3>
+				<img id="imgPreview" style="max-width:100%; height:auto;" />
+				<button id="closeImg" style="margin-top:16px;">關閉</button>
+			</div>
 		</dialog>
 	</main>
 	<script src="/manage.js"></script>

@@ -297,7 +297,7 @@ app.get('/api/items', requireUser, async (req, res) => {
 		const sql = `
 			SELECT items.id, items.name, items.description, items.image_path,
 				items.floor_id, items.room_id, items.status, items.borrower, items.borrow_location,
-				items.borrow_at, items.returned_at, items.owner, items.quantity,
+				items.borrow_at, items.returned_at, items.owner, items.quantity, items.borrow_quantity,
 				floors.name AS floor_name, rooms.name AS room_name
 			FROM items
 			JOIN floors ON items.floor_id = floors.id
@@ -317,7 +317,7 @@ app.get('/api/items/:id', requireUser, async (req, res) => {
 		const sql = `
 			SELECT items.id, items.name, items.description, items.image_path,
 				items.floor_id, items.room_id, items.status, items.borrower, items.borrow_location,
-				items.borrow_at, items.returned_at, items.owner, items.quantity,
+				items.borrow_at, items.returned_at, items.owner, items.quantity, items.borrow_quantity,
 				floors.name AS floor_name, rooms.name AS room_name
 			FROM items
 			JOIN floors ON items.floor_id = floors.id
@@ -360,14 +360,47 @@ app.put('/api/items/:id', requireUser, async (req, res) => {
 		// 狀態與時間
 		if (typeof status !== 'undefined') {
 			fields.push('status = ?'); values.push(status);
+			
+			// 取得當前物品狀態、數量和借出數量
+			const currentItem = await getQuery('SELECT status, quantity, borrow_quantity FROM items WHERE id = ?', [req.params.id]);
+			const currentStatus = currentItem?.status;
+			const currentQuantity = currentItem?.quantity || 0;
+			const currentBorrowQty = currentItem?.borrow_quantity || 0;
+			
 			if (status === 'borrowed') {
+				// 借出：檢查借出數量
+				let borrowQuantity = req.body.borrow_quantity;
+				if (typeof borrowQuantity === 'undefined' || borrowQuantity === '') {
+					borrowQuantity = 1; // 預設借出1個
+				} else {
+					borrowQuantity = parseInt(borrowQuantity, 10);
+					if (!Number.isInteger(borrowQuantity) || borrowQuantity <= 0) {
+						return res.status(400).json({ error: '借出數量必須為正整數' });
+					}
+				}
+				
+				// 檢查庫存是否足夠
+				const availableQty = currentQuantity - currentBorrowQty;
+				if (borrowQuantity > availableQty) {
+					return res.status(400).json({ error: `可用庫存不足，目前可用：${availableQty}，欲借出：${borrowQuantity}` });
+				}
+				
+				fields.push('borrow_quantity = ?'); values.push(borrowQuantity);
 				fields.push('borrow_at = CURRENT_TIMESTAMP');
 				fields.push('returned_at = NULL');
-			} else if (status === 'returned') {
-				fields.push('returned_at = CURRENT_TIMESTAMP');
-			} else if (status === 'available') {
-				fields.push('borrow_at = NULL');
-				fields.push('returned_at = NULL');
+				
+			} else if (status === 'returned' || status === 'available') {
+				// 歸還或設為可用：將借出數量返回庫存
+				if (currentStatus === 'borrowed' && currentBorrowQty > 0) {
+					fields.push('borrow_quantity = ?'); values.push(0);
+				}
+				
+				if (status === 'returned') {
+					fields.push('returned_at = CURRENT_TIMESTAMP');
+				} else if (status === 'available') {
+					fields.push('borrow_at = NULL');
+					fields.push('returned_at = NULL');
+				}
 			}
 		}
 		if (typeof borrower !== 'undefined') { fields.push('borrower = ?'); values.push(borrower || null); }
@@ -406,13 +439,15 @@ app.post('/api/items/:id/dispatch', requireUser, async (req, res) => {
 		let { amount } = req.body;
 		amount = amount === undefined || amount === '' ? 1 : parseInt(amount, 10);
 		if (!Number.isInteger(amount) || amount <= 0) return res.status(400).json({ error: 'amount must be a positive integer' });
-		const item = await getQuery('SELECT id, quantity FROM items WHERE id = ?', [req.params.id]);
+		const item = await getQuery('SELECT id, quantity, borrow_quantity FROM items WHERE id = ?', [req.params.id]);
 		if (!item) return res.status(404).json({ error: 'Item not found' });
-		const newQty = (item.quantity ?? 0) - amount;
-		if (newQty < 0) return res.status(400).json({ error: `擁有數量：${item.quantity ?? 0}，庫存不足`, quantity: item.quantity ?? 0 });
-		await runQuery('UPDATE items SET quantity = ? WHERE id = ?', [newQty, req.params.id]);
+		const availableQty = (item.quantity ?? 0) - (item.borrow_quantity ?? 0);
+		if (amount > availableQty) return res.status(400).json({ error: `可用庫存不足，目前可用：${availableQty}，欲送出：${amount}`, quantity: availableQty });
+		// 送出從總數量扣除，保持借出數量不變
+		const newTotalQty = (item.quantity ?? 0) - amount;
+		await runQuery('UPDATE items SET quantity = ? WHERE id = ?', [newTotalQty, req.params.id]);
 		await runQuery('INSERT INTO item_history (item_id, user_id, action, changes) VALUES (?, ?, ?, ?)', [req.params.id, req.userId, 'dispatch', JSON.stringify({ amount })]);
-		res.json({ success: true, quantity: newQty });
+		res.json({ success: true, quantity: newTotalQty });
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}

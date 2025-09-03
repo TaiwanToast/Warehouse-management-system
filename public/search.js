@@ -98,7 +98,9 @@ async function search(){
 					<span class="badge">${r.floor_name}</span>
 					<span class="badge">${r.room_name}</span>
 					${r.owner?`<span class="badge owner">所屬：${r.owner}</span>`:''}
-					${(r.quantity!==undefined && r.quantity!==null)?`<span class="badge" style="${Number(r.quantity)===0?'background:#dc3545;color:#fff;':''}">數量：${r.quantity}</span>`:''}
+					${(r.quantity!==undefined && r.quantity!==null)?`<span class="badge" style="${Number(r.quantity)===0?'background:#dc3545;color:#fff;':''}">總數量：${r.quantity}</span>`:''}
+					${(r.borrow_quantity!==undefined && r.borrow_quantity!==null && r.borrow_quantity>0)?`<span class="badge" style="background:#ff9500;color:#fff;">借出：${r.borrow_quantity}</span>`:''}
+					${(r.quantity!==undefined && r.quantity!==null && r.borrow_quantity!==undefined && r.borrow_quantity!==null)?`<span class="badge" style="background:#34c759;color:#fff;">可用：${Math.max(0, (r.quantity || 0) - (r.borrow_quantity || 0))}</span>`:''}
 				</div>
 				<p>${r.description||''}</p>
 				${borrowLine}

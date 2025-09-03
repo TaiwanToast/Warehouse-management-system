@@ -69,6 +69,9 @@ async function search(){
 					<span class="badge">${r.floor_name}</span>
 					<span class="badge">${r.room_name}</span>
 					${r.owner?`<span class="badge owner">所屬：${r.owner}</span>`:''}
+					${(r.quantity!==undefined && r.quantity!==null)?`<span class="badge" style="${Number(r.quantity)===0?'background:#dc3545;color:#fff;':''}">總數量：${r.quantity}</span>`:''}
+					${(r.borrow_quantity!==undefined && r.borrow_quantity!==null && r.borrow_quantity>0)?`<span class="badge" style="background:#ff9500;color:#fff;">借出：${r.borrow_quantity}</span>`:''}
+					${(r.quantity!==undefined && r.quantity!==null && r.borrow_quantity!==undefined && r.borrow_quantity!==null)?`<span class="badge" style="background:#34c759;color:#fff;">可用：${Math.max(0, (r.quantity || 0) - (r.borrow_quantity || 0))}</span>`:''}
 				</div>
 				<p>${r.description||''}</p>
 				<div class="flex">
@@ -142,27 +145,37 @@ function bind(){
 			form.quantity.value = itemData.quantity ?? 1;
 			form.description.value = item.querySelector('p').textContent;
 			await loadEditSelectors(item.dataset.floorId, item.dataset.roomId);
-			form.status && (form.status.value = 'available');
-			form.borrower && (form.borrower.value = '');
-			form.borrow_location && (form.borrow_location.value = '');
+			form.status && (form.status.value = itemData.status || 'available');
+			form.borrower && (form.borrower.value = itemData.borrower || '');
+			form.borrow_location && (form.borrow_location.value = itemData.borrow_location || '');
+			// 載入借出數量
+			const borrowQuantityInput = document.getElementById('edit-borrow-quantity');
+			if (borrowQuantityInput) {
+				borrowQuantityInput.value = itemData.borrow_quantity || 1;
+			}
 			const dispatchAmountInput = document.getElementById('dispatch-amount');
 			const statusSel = document.getElementById('edit-status');
 			function updateFieldsByStatus(){
 				if(!statusSel) return;
+				const borrowQuantityInput = document.getElementById('edit-borrow-quantity');
+				
 				if(statusSel.value === 'borrowed'){
 					form.borrower.style.display = '';
 					form.borrower.placeholder = '借用人（狀態為借出中時填寫）';
 					form.borrow_location.style.display = '';
+					borrowQuantityInput.style.display = '';
 					dispatchAmountInput.style.display = 'none';
 				}else if(statusSel.value === 'dispatch'){
 					form.borrower.style.display = '';
 					form.borrower.placeholder = '送出對象';
 					form.borrow_location.style.display = 'none';
+					borrowQuantityInput.style.display = 'none';
 					dispatchAmountInput.style.display = '';
 					dispatchAmountInput.value = '1';
 				}else{
 					form.borrower.style.display = 'none';
 					form.borrow_location.style.display = 'none';
+					borrowQuantityInput.style.display = 'none';
 					dispatchAmountInput.style.display = 'none';
 				}
 			}
@@ -181,6 +194,7 @@ function bind(){
 					status: form.status ? (form.status.value==='dispatch'?'available':form.status.value) : undefined,
 					borrower: form.borrower ? form.borrower.value.trim()||null : undefined,
 					borrow_location: form.borrow_location ? form.borrow_location.value.trim()||null : undefined,
+					borrow_quantity: form.status && form.status.value === 'borrowed' ? parseInt(document.getElementById('edit-borrow-quantity').value, 10) : undefined,
 				};
 				await sendJSON(`/api/items/${id}`, 'PUT', payload);
 				// 若選擇送出，於儲存後呼叫 dispatch API 扣庫存
