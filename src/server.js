@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const os = require('os');
-const { runQuery, allQuery, getQuery } = require('./db');
+const { runQuery, allQuery, getQuery, cachedQuery, clearCache } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -251,6 +251,10 @@ app.post('/api/items', requireUser, handleMulterUpload(upload.single('image')), 
 		// 歷史紀錄
 		const created = await getQuery('SELECT last_insert_rowid() as id');
 		await runQuery('INSERT INTO item_history (item_id, user_id, action, changes) VALUES (?, ?, ?, ?)', [created.id, req.userId, 'create', JSON.stringify({ name, description, floor_id, room_id, owner: ownerUsername, quantity })]);
+		
+		// 清除相關快取
+		clearCache('items');
+		
 		res.status(201).json({ success: true });
 	} catch (err) {
 		res.status(500).json({ error: err.message });
@@ -285,7 +289,11 @@ app.get('/api/users', async (req, res) => {
 
 app.get('/api/items', requireUser, async (req, res) => {
 	try {
-		const { q, floor_id, room_id } = req.query;
+		const { q, floor_id, room_id, page = 1, limit = 50 } = req.query;
+		const pageNum = Math.max(1, parseInt(page, 10));
+		const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10))); // 限制最大100筆
+		const offset = (pageNum - 1) * limitNum;
+		
 		let where = [];
 		let params = [];
 		if (q) { where.push('items.name LIKE ?'); params.push(`%${q}%`); }
@@ -294,6 +302,19 @@ app.get('/api/items', requireUser, async (req, res) => {
 		const admin = await isAdmin(req);
 		if (!admin){ where.push('items.owner_user_id = ?'); params.push(req.userId); }
 		const whereSql = where.length ? ('WHERE ' + where.join(' AND ')) : '';
+		
+		// 先查總數（使用快取）
+		const countSql = `
+			SELECT COUNT(*) as total
+			FROM items
+			JOIN floors ON items.floor_id = floors.id
+			JOIN rooms ON items.room_id = rooms.id
+			${whereSql}
+		`;
+		const countResult = await getQuery(countSql, params);
+		const total = countResult.total;
+		
+		// 查詢分頁資料
 		const sql = `
 			SELECT items.id, items.name, items.description, items.image_path,
 				items.floor_id, items.room_id, items.status, items.borrower, items.borrow_location,
@@ -304,9 +325,22 @@ app.get('/api/items', requireUser, async (req, res) => {
 			JOIN rooms ON items.room_id = rooms.id
 			${whereSql}
 			ORDER BY items.created_at DESC
+			LIMIT ? OFFSET ?
 		`;
-		const rows = await allQuery(sql, params);
-		res.json(rows);
+		const rows = await allQuery(sql, [...params, limitNum, offset]);
+		
+		// 回傳分頁資訊
+		res.json({
+			data: rows,
+			pagination: {
+				page: pageNum,
+				limit: limitNum,
+				total: total,
+				totalPages: Math.ceil(total / limitNum),
+				hasNext: pageNum < Math.ceil(total / limitNum),
+				hasPrev: pageNum > 1
+			}
+		});
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}
@@ -420,6 +454,11 @@ app.put('/api/items/:id', requireUser, async (req, res) => {
 		await runQuery(`UPDATE items SET ${fields.join(', ')} WHERE id = ?`, values);
 		const changes = { ...req.body, owner: ownerUsername };
 		await runQuery('INSERT INTO item_history (item_id, user_id, action, changes) VALUES (?, ?, ?, ?)', [req.params.id, req.userId, 'update', JSON.stringify(changes)]);
+		
+		// 清除相關快取
+		clearCache('items');
+		clearCache(`item_history:${req.params.id}`);
+		
 		res.json({ success: true });
 	} catch (err) {
 		res.status(500).json({ error: err.message });
@@ -519,6 +558,11 @@ app.delete('/api/users/me', requireUser, async (req, res) => {
 // 歷史紀錄查詢
 app.get('/api/items/:id/history', requireUser, async (req, res) => {
 	try {
+		const { page = 1, limit = 20 } = req.query;
+		const pageNum = Math.max(1, parseInt(page, 10));
+		const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10))); // 限制最大50筆
+		const offset = (pageNum - 1) * limitNum;
+		
 		const admin = await isAdmin(req);
 		if(!admin){
 			const own = await getQuery('SELECT owner_user_id FROM items WHERE id = ?', [req.params.id]);
@@ -526,8 +570,88 @@ app.get('/api/items/:id/history', requireUser, async (req, res) => {
 				return res.status(403).json({ error: '無權限存取' });
 			}
 		}
-		const rows = await allQuery('SELECT id, action, changes, created_at FROM item_history WHERE item_id = ? ORDER BY created_at DESC', [req.params.id]);
-		res.json(rows);
+		
+		// 查詢總數
+		const countResult = await getQuery('SELECT COUNT(*) as total FROM item_history WHERE item_id = ?', [req.params.id]);
+		const total = countResult.total;
+		
+		// 查詢分頁資料
+		const rows = await allQuery(
+			'SELECT id, action, changes, created_at FROM item_history WHERE item_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?', 
+			[req.params.id, limitNum, offset]
+		);
+		
+		res.json({
+			data: rows,
+			pagination: {
+				page: pageNum,
+				limit: limitNum,
+				total: total,
+				totalPages: Math.ceil(total / limitNum),
+				hasNext: pageNum < Math.ceil(total / limitNum),
+				hasPrev: pageNum > 1
+			}
+		});
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
+// 資料庫統計資訊（管理員專用）
+app.get('/api/stats', requireUser, async (req, res) => {
+	try {
+		const admin = await isAdmin(req);
+		if (!admin) {
+			return res.status(403).json({ error: '需要管理員權限' });
+		}
+		
+		const stats = await Promise.all([
+			// 物品統計
+			getQuery('SELECT COUNT(*) as total FROM items'),
+			getQuery('SELECT COUNT(*) as available FROM items WHERE status = "available"'),
+			getQuery('SELECT COUNT(*) as borrowed FROM items WHERE status = "borrowed"'),
+			getQuery('SELECT COUNT(*) as returned FROM items WHERE status = "returned"'),
+			
+			// 使用者統計
+			getQuery('SELECT COUNT(*) as total FROM users'),
+			
+			// 樓層房間統計
+			getQuery('SELECT COUNT(*) as total FROM floors'),
+			getQuery('SELECT COUNT(*) as total FROM rooms'),
+			
+			// 歷史記錄統計
+			getQuery('SELECT COUNT(*) as total FROM item_history'),
+			
+			// 庫存統計
+			getQuery('SELECT SUM(quantity) as total_quantity FROM items'),
+			getQuery('SELECT SUM(borrow_quantity) as total_borrowed FROM items'),
+			getQuery('SELECT COUNT(*) as low_stock FROM items WHERE (quantity - COALESCE(borrow_quantity, 0)) <= 1')
+		]);
+		
+		res.json({
+			items: {
+				total: stats[0].total,
+				available: stats[1].available,
+				borrowed: stats[2].borrowed,
+				returned: stats[3].returned
+			},
+			users: {
+				total: stats[4].total
+			},
+			locations: {
+				floors: stats[5].total,
+				rooms: stats[6].total
+			},
+			history: {
+				total: stats[7].total
+			},
+			inventory: {
+				total_quantity: stats[8].total_quantity || 0,
+				total_borrowed: stats[9].total_borrowed || 0,
+				available_quantity: (stats[8].total_quantity || 0) - (stats[9].total_borrowed || 0),
+				low_stock_items: stats[10].low_stock
+			}
+		});
 	} catch (err) {
 		res.status(500).json({ error: err.message });
 	}

@@ -58,7 +58,8 @@ async function search(){
 	if (q) u.searchParams.set('q', q);
 	if (floorId) u.searchParams.set('floor_id', floorId);
 	if (roomId) u.searchParams.set('room_id', roomId);
-	const rows = await fetchJSON(u.toString());
+	const response = await fetchJSON(u.toString());
+	const rows = response.data || response; // 支援新舊格式
 	const c = $('#results'); c.innerHTML='';
 	for(const r of rows){
 		c.insertAdjacentHTML('beforeend', `

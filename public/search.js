@@ -75,7 +75,8 @@ async function search(){
 	if (q) u.searchParams.set('q', q);
 	if (floorId) u.searchParams.set('floor_id', floorId);
 	if (roomId) u.searchParams.set('room_id', roomId);
-	const rows = await fetchJSON(u.toString());
+	const response = await fetchJSON(u.toString());
+	const rows = response.data || response; // 支援新舊格式
 	const container = $('#results'); container.innerHTML='';
 	for(const r of rows){
 		const st = mapStatus(r.status);
@@ -137,7 +138,8 @@ function bindHistoryClick(){
 				const userId = localStorage.getItem('loginUserId');
 				const r = await fetch(`/api/items/${id}/history`, { headers: userId? { 'x-user-id': userId } : {} });
 				if(!r.ok){ throw new Error(await r.text()); }
-				const rows = await r.json();
+				const response = await r.json();
+				const rows = response.data || response; // 支援新舊格式
 				list.innerHTML = rows.map(h=>{
 					let changes = '';
 					try{ const obj = h.changes? JSON.parse(h.changes):{}; changes = `<pre style="white-space:pre-wrap;">${JSON.stringify(obj,null,2)}</pre>`; }catch{ changes = h.changes||''; }
