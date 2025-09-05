@@ -118,18 +118,40 @@ app.get('/api/floors', async (req, res) => {
 		// 先取得所有樓層，然後在 JavaScript 中排序
 		const floors = await allQuery('SELECT id, name FROM floors');
 		
-		// 將中文數字轉換為阿拉伯數字進行排序
-		const sortedFloors = floors.sort((a, b) => {
-			const getFloorNumber = (name) => {
-				const numMap = {
-					'一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
-					'六': 6, '七': 7, '八': 8, '九': 9, '十': 10
-				};
-				const chineseNum = name.replace(/樓|樓層/g, '');
-				return numMap[chineseNum] || parseInt(chineseNum) || 0;
-			};
-			return getFloorNumber(a.name) - getFloorNumber(b.name);
-		});
+		// 修正排序邏輯：地下樓層（B1, B2, B3）在前，地上樓層（一樓, 二樓...）在後
+		const getFloorSortValue = (name) => {
+			const str = String(name);
+			
+			// 處理地下樓層 B1, B2, B3 等
+			const basementMatch = str.match(/^B(\d+)$/i);
+			if (basementMatch) {
+				return parseInt(basementMatch[1], 10) - 1000; // 負數，確保排在最前面
+			}
+			
+			// 處理阿拉伯數字樓層
+			const numMatch = str.match(/\d+/);
+			if (numMatch) {
+				return parseInt(numMatch[0], 10);
+			}
+			
+			// 處理中文數字樓層
+			const map = {"零":0,"〇":0,"一":1,"二":2,"兩":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
+			let s = str.replace(/樓|層|F|f/g,'');
+			if(s==='十') return 10;
+			const idx = s.indexOf('十');
+			if(idx!==-1){
+				const tens = idx===0?1:(map[s[idx-1]]||0);
+				const ones = map[s[idx+1]]||0;
+				return tens*10 + ones;
+			}
+			let n = 0; 
+			for(const ch of s){ 
+				if(map.hasOwnProperty(ch)) n = n*10 + map[ch]; 
+			}
+			return n || Number.MAX_SAFE_INTEGER;
+		};
+		
+		const sortedFloors = floors.sort((a, b) => getFloorSortValue(a.name) - getFloorSortValue(b.name));
 		
 		res.json(sortedFloors);
 	} catch (err) {

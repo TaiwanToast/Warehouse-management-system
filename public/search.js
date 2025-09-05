@@ -48,7 +48,7 @@ function cnNumToInt(str){
 
 async function initOptions(){
 	let floors = await fetchJSON('/api/floors');
-	floors = floors.sort((a,b)=> cnNumToInt(a.name) - cnNumToInt(b.name));
+	// 後端已經排序，不需要重複排序
 	$('#q-floor').innerHTML = '<option value="">全部樓層</option>';
 	for(const f of floors){
 		$('#q-floor').insertAdjacentHTML('beforeend', `<option value="${f.id}">${f.name}</option>`);

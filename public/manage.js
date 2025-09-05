@@ -35,7 +35,7 @@ function cnNumToInt(str){
 
 async function loadFloorsAndRooms(){
 	let floors = await fetchJSON('/api/floors');
-	floors = floors.sort((a,b)=> cnNumToInt(a.name) - cnNumToInt(b.name));
+	// 後端已經排序，不需要重複排序
 	const floorSel = $('#q-floor-manage');
 	const roomSel = $('#q-room-manage');
 	floorSel.innerHTML = '<option value="">全部樓層</option>';
@@ -98,7 +98,7 @@ function bindImagePreview(){
 
 async function loadEditSelectors(fid, rid){
 	let floors = await fetchJSON('/api/floors');
-	floors = floors.sort((a,b)=> cnNumToInt(a.name) - cnNumToInt(b.name));
+	// 後端已經排序，不需要重複排序
 	const floorSel = $('#edit-floor');
 	const roomSel = $('#edit-room');
 	floorSel.innerHTML = '<option value="">選擇樓層</option>';
